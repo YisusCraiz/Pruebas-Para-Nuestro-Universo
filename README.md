@@ -29,3 +29,18 @@ Proyecto: suvcdkqqwrodwxgmcjej, cuenta PruebasX.
 Se verificó en servidor registro, inicio de sesión y rechazo de usuario duplicado con cuenta temporal; pruebas de RLS para anfitrión, invitado y tercero en transacción revertida. Falta prueba de reproducción completa con dos dispositivos reales. No incluye catálogo, HLS, chat, presencia ni recuperación de contraseña. No se integra aún en Nuestro Universo.
 
 Salas simplificadas: RPC animejj_room_action con autenticación obligatoria, código de 12 caracteres, ingreso atómico con bloqueo de fila y límite de intentos. Función privilegiada en esquema privado y envoltura pública sin privilegios elevados. Pruebas transaccionales: código generado, segunda plaza, rechazo de tercero y latidos sin alterar el reloj de reproducción. SQL aplicado conservado en supabase/simple-rooms.sql.
+
+## Primera fuente externa: YouTube oficial
+El reproductor usa YouTube IFrame Player API, sin extraer streams ni alojar videos. Hay tres referencias iniciales publicadas por los canales oficiales de Pokémon: Liga Añil episodio 1 en español, Twilight Wings episodio 1 y Paldean Winds episodio 1 en inglés. La selección se mantiene en sources.js y no representa el catálogo completo de esas series. Los videos pueden ser retirados o restringidos por país o por el dueño; los errores del reproductor se muestran sin intentar eludir restricciones.
+
+El anfitrión puede elegir un episodio desde las tarjetas o pegar un enlace YouTube HTTPS; la referencia se comparte mediante el campo media_url existente. El adaptador player.js expone reproducción, pausa, posición y duración a las salas. Los controles propios de YouTube siguen accesibles para volumen, CC y pantalla completa; el invitado sigue el estado del anfitrión en cada consulta. La sincronización es experimental y puede diferir por anuncios, buffering, permisos de autoplay y red.
+
+En YouTube no se superponen subtítulos locales ni se ofrecen subtítulos dobles; usa las pistas disponibles en su reproductor. Los archivos locales y videos directos conservan SRT/VTT dobles. Ninguna etiqueta promete pistas ES/EN no verificadas. La miniatura de YouTube y sus recursos solo se solicitan al seleccionar un video; la selección inicial usa tarjetas de texto.
+
+Referencias de contenido:
+- https://www.youtube.com/watch?v=4gVnBT0t8hQ (PokemonOficialES)
+- https://press.pokemon.com/en/MEDIA-ALERT-New-Animated-Series-Pokemon-Twilight-Wings-Launches-Today (enlace oficial a rYDmL5VH-uk)
+- https://www.youtube.com/watch?v=uyMxQl-PeJE (The Official Pokémon YouTube channel)
+- API: https://developers.google.com/youtube/iframe_api_reference
+
+Validación: diez pruebas automáticas, incluidas URLs y transición YouTube/video directo con adaptador simulado. No equivale a validar un capítulo completo en dos dispositivos ni disponibilidad desde México y Estados Unidos.
