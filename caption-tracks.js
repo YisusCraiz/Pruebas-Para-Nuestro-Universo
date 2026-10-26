@@ -13,3 +13,6 @@ export class CaptionTracks {
 const key='animejj.caption-preferences.v1';
 export function captionPreferences(storage){try{const value=JSON.parse(storage.getItem(key)||'{}');return {mode:['both','es','en','off'].includes(value?.mode)?value.mode:'both',size:[80,100,120,140,160].includes(value?.size)?value.size:100};}catch{return {mode:'both',size:100};}}
 export function saveCaptionPreferences(storage,value){try{storage.setItem(key,JSON.stringify({mode:['both','es','en','off'].includes(value.mode)?value.mode:'both',size:[80,100,120,140,160].includes(value.size)?value.size:100}));}catch{}}
+
+// If a chosen language is missing, load the available original for translation.
+export function captionLoadLanguages(mode,languages){const available=['es','en'].filter(lang=>languages.includes(lang));if(mode==='off')return [];if(mode==='both')return available;return available.includes(mode)?[mode]:available;}

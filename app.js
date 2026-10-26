@@ -1,18 +1,18 @@
-import {translationSupported,translateCaptionCues} from './translate-captions.js?v=20261026-portable1';
-import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-portable1';
-import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-portable1';
-import {initBrowse} from './browse.js?v=20261026-portable1';
-import {initRooms,canLoadSource} from './rooms.js?v=20261026-portable1';
-import {activeText} from './subtitles.js?v=20261026-portable1';
-import {CaptionTracks,captionPreferences,saveCaptionPreferences} from './caption-tracks.js?v=20261026-portable1';
-import {MediaPlayer} from './player.js?v=20261026-portable1';
-import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-portable1';
+import {translationSupported,translateCaptionCues} from './translate-captions.js?v=20261026-portable2';
+import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-portable2';
+import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-portable2';
+import {initBrowse} from './browse.js?v=20261026-portable2';
+import {initRooms,canLoadSource} from './rooms.js?v=20261026-portable2';
+import {activeText} from './subtitles.js?v=20261026-portable2';
+import {CaptionTracks,captionPreferences,saveCaptionPreferences,captionLoadLanguages} from './caption-tracks.js?v=20261026-portable2';
+import {MediaPlayer} from './player.js?v=20261026-portable2';
+import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-portable2';
 const $=id=>document.getElementById(id),video=new MediaPlayer($('video'),$('youtubeHost'));
 let captionLookup=null,translationJob=null,translatedFrom=null;
 const captions=new CaptionTracks(()=>{render();captionStatus();});
 let preferenceStore;try{preferenceStore=window.localStorage;}catch{}
 const preferences=captionPreferences(preferenceStore);$('mode').value=preferences.mode;$('captionSize').value=String(preferences.size);
-function applyPreferences(){for(const button of $('personalCaptionModes').querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.captionMode===$('mode').value));const size=Number($('captionSize').value);$('captions').style.fontSize=`clamp(${15*size/100}px,${2*size/100}vw,${25*size/100}px)`;saveCaptionPreferences(preferenceStore,{mode:$('mode').value,size});render();if(video.providerInfo&&captionLookup?.data)for(const lang of ['es','en'])if(($('mode').value==='both'||$('mode').value===lang)&&captions.get(lang).status==='empty'&&$(lang+'Remote').value)void remoteSubtitle(lang);}
+function applyPreferences(){for(const button of $('personalCaptionModes').querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.captionMode===$('mode').value));const size=Number($('captionSize').value);$('captions').style.fontSize=`clamp(${15*size/100}px,${2*size/100}vw,${25*size/100}px)`;saveCaptionPreferences(preferenceStore,{mode:$('mode').value,size});render();if(video.providerInfo&&captionLookup?.data)for(const lang of captionLoadLanguages($('mode').value,captionLookup.data.tracks.map(t=>t.language)))if(captions.get(lang).status==='empty'&&$(lang+'Remote').value)void remoteSubtitle(lang);}
 applyPreferences();
 for(const button of $('personalCaptionModes').querySelectorAll('button'))button.addEventListener('click',()=>{$('mode').value=button.dataset.captionMode;applyPreferences();});
 function message(text){$('message').textContent=text;}
@@ -45,7 +45,7 @@ async function prepareCaptions(info,ref){captionLookup?.controller.abort();const
  for(const lang of ['es','en']){const select=$(lang+'Remote');select.replaceChildren(new Option('Sin pista',''));select.disabled=true;if(captions.get(lang).kind!=='file')captions.clear(lang,'loading');}
  try{const data=await searchAlternativeSubtitles(ref,lookup.controller.signal);if(lookup!==captionLookup||lookup.controller.signal.aborted)return;lookup.data=data;
  $('sourceSubtitleStatus').textContent=`Fuente alternativa: Gestdown · ${data.mapping.title} · T${data.mapping.season} E${data.mapping.episode}. Si el texto no coincide, elige otra versión o ajusta el tiempo.${data.warnings?.length?' '+data.warnings.join(' · '):''}`;
- for(const lang of ['es','en']){const list=data.tracks.filter(t=>t.language===lang),select=$(lang+'Remote');select.replaceChildren(new Option('Sin pista',''),...list.map(t=>new Option(t.label,t.id)));select.disabled=!list.length;if(captions.get(lang).kind==='file'){select.value='';continue;}select.value=list[0]?.id||'';if(!list.length)captions.clear(lang,'unavailable');else if($('mode').value==='both'||$('mode').value===lang)void remoteSubtitle(lang);else captions.clear(lang);}
+ for(const lang of ['es','en']){const list=data.tracks.filter(t=>t.language===lang),select=$(lang+'Remote');select.replaceChildren(new Option('Sin pista',''),...list.map(t=>new Option(t.label,t.id)));select.disabled=!list.length;if(captions.get(lang).kind==='file'){select.value='';continue;}select.value=list[0]?.id||'';if(!list.length)captions.clear(lang,'unavailable');else if(captionLoadLanguages($('mode').value,data.tracks.map(t=>t.language)).includes(lang))void remoteSubtitle(lang);else captions.clear(lang);}
  }catch(error){if(lookup!==captionLookup||lookup.controller.signal.aborted)return;lookup.failed=true;$('sourceSubtitleStatus').textContent=error.message+' Puedes cargar un archivo propio.';for(const lang of ['es','en'])if(captions.get(lang).kind!=='file')captions.clear(lang,'unavailable');}finally{if(lookup===captionLookup)captionStatus();}
 }
 
