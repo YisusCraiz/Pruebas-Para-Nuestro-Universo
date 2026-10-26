@@ -42,3 +42,6 @@ Senshi respondió con episodios, pero su resolvedor vidcloud devolvió 404; no s
 Las pistas de español/inglés existen en la respuesta; su descarga desde Supabase requiere verificación independiente y puede fallar aunque el video funcione. La interfaz informa errores y admite archivos locales. ASS usa texto plano seguro mediante textContent; no replica estilos avanzados. Las referencias guardadas contienen anime/episodio, no la URL temporal del CDN.
 
 El conector se mantiene experimental y aislado en este repositorio de pruebas. No está integrado con Nuestro Universo. Las pruebas automáticas cubren también coincidencias ambiguas, referencias falsas y cancelación de resoluciones antiguas.
+
+## Diagnóstico de subtítulos y mejora del cliente
+La respuesta 403 fue identificada mediante registros: página “Attention Required! | Cloudflare”. Se detuvieron los intentos de recuperación de esa ruta. El endpoint devuelve SUBTITLE_BLOCKED con estado 422 y un mensaje utilizable, sin exponer el HTML del bloqueo. El cliente mantiene estados independientes por idioma y cancela resultados antiguos al cambiar capítulo o cargar un archivo. Las pruebas cubren esas carreras, errores parciales y preferencias con almacenamiento no disponible.

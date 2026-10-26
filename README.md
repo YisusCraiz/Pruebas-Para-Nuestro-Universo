@@ -40,3 +40,8 @@ Consulta docs/provider-review.md para fuentes revisadas, respuestas observadas, 
 La función animejj-catalog está desplegada y devuelve solo consultas públicas predefinidas de búsqueda y ficha. La clave publicable identifica el cliente; no concede acceso a datos privados. Hay validación de acciones/parámetros, tiempo máximo, caché breve y límite preventivo de peticiones por instancia. Se verificó respuesta real 200 para búsqueda de Kimetsu.
 
 Las pistas remotas ES/EN se consultan cuando la fuente las ofrece. ASS se presenta como texto plano (sin tipografía, posicionamiento ni karaoke). Si la fuente rechaza una pista se indica el error y se permite cargar un archivo local. Los videos van directamente del origen al navegador; Supabase no retransmite segmentos de video.
+
+## Ajustes de subtítulos
+El botón Subtítulos / Subtitles abre los ajustes. Cada idioma muestra por separado carga, líneas listas, archivo propio o error, y se pueden reintentar solo las pistas remotas fallidas. Se recuerda modo ES/EN/ambos/ninguno y tamaño (80–160%) en el navegador; el desfase vuelve a cero en cada capítulo. Los archivos propios cancelan una descarga pendiente y no se suben al servidor.
+
+Diagnóstico confirmado: el CDN devuelve una página Cloudflare “Attention Required” a Supabase al descargar las pistas. No se elude la verificación; la app informa el bloqueo y conserva la opción de SRT/VTT/ASS locales. Esto no significa que los subtítulos automáticos estén reparados.
