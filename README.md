@@ -13,7 +13,7 @@ Las cuentas nuevas usan nombre de usuario y contraseña, sin correo ni confirmac
 ## Catálogo
 Después de entrar aparece:
 - **Para probar**: tres referencias verificadas de canales oficiales Pokémon, con ficha y selección de episodio.
-- **Explorar anime**: búsqueda paginada de AniList con portadas, sinopsis, año, número de episodios e historias relacionadas. La API puede estar caída o limitar consultas; se informa el error y se conserva la selección de prueba.
+- **Explorar anime**: búsqueda paginada de AniList a través de la función de catálogo de Supabase con portadas, sinopsis, año, número de episodios e historias relacionadas. La API puede estar caída o limitar consultas; se informa el error y se conserva la selección de prueba.
 - **Mi lista**: títulos guardados en este dispositivo. No se sincronizan con otra cuenta, navegador ni dispositivo.
 
 Una ficha no garantiza reproducción. Solo los episodios con fuente integrada se abren en AnimeJJ. Los enlaces de otras plataformas se identifican como externos, pueden exigir cuenta/suscripción y no se sincronizan con la sala. No se promete audio/subtítulos en idiomas que la fuente no haya confirmado. Las sinopsis aparecen en el idioma entregado por AniList.
@@ -36,3 +36,5 @@ Servidor local: `python -m http.server 8080` o Live Server. No abrir index.html 
 `npm test` ejecuta las pruebas. Módulos JS sin proceso de build; GitHub Pages publica main desde la raíz. Los cambios llevan versión de recursos para evitar usar módulos de interfaz antiguos.
 
 Consulta docs/provider-review.md para fuentes revisadas, respuestas observadas, decisiones y límites. La entrega amplía catálogo/interfaz/reproductor; **todavía no incorpora un proveedor amplio de episodios**. Falta validar un capítulo completo en dos dispositivos reales.
+
+La función animejj-catalog está desplegada y devuelve solo consultas públicas predefinidas de búsqueda y ficha. La clave publicable identifica el cliente; no concede acceso a datos privados. Hay validación de acciones/parámetros, tiempo máximo, caché breve y límite preventivo de peticiones por instancia. Se verificó respuesta real 200 para búsqueda de Kimetsu.

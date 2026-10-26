@@ -1,8 +1,8 @@
-import {initBrowse} from './browse.js?v=20261026-discover1';
-import {initRooms,canLoadSource} from './rooms.js?v=20261026-discover1';
+import {initBrowse} from './browse.js?v=20261026-discover2';
+import {initRooms,canLoadSource} from './rooms.js?v=20261026-discover2';
 import {parseSubtitles,activeText} from './subtitles.js';
-import {MediaPlayer} from './player.js?v=20261026-discover1';
-import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-discover1';
+import {MediaPlayer} from './player.js?v=20261026-discover2';
+import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-discover2';
 const $=id=>document.getElementById(id),video=new MediaPlayer($('video'),$('youtubeHost'));
 const tracks={es:[],en:[]};
 function message(text){$('message').textContent=text;}

@@ -1,4 +1,4 @@
-import {normalizeUsername,usernameEmail,displayUsername} from './username.js?v=20261026-discover1';
+import {normalizeUsername,usernameEmail,displayUsername} from './username.js?v=20261026-discover2';
 import {playbackTarget,safeVideoUrl} from './sync.js';
 const $=id=>document.getElementById(id), say=text=>$('roomMessage').textContent=text;
 let client,user,player,room,timer,heartbeat,applying=false,publishing=false,queued=false,pendingAction=null,offline=false;
