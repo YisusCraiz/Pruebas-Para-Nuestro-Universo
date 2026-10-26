@@ -1,4 +1,4 @@
-import {initRooms, canLoadSource} from './rooms.js?v=20261026-auth2';
+import {initRooms, canLoadSource} from './rooms.js?v=20261026-simple1';
 import {parseSubtitles, activeText} from './subtitles.js';
 const $ = id => document.getElementById(id), video = $('video');
 const tracks = {es:[], en:[]}; let objectURL; let currentSource="";
@@ -9,7 +9,7 @@ function load(source, title) {
   video.pause();
   if (objectURL) {URL.revokeObjectURL(objectURL);objectURL=null;}
   if (source instanceof File) {objectURL=URL.createObjectURL(source);source=objectURL;}
-  video.src=source; video.load(); $('title').textContent=title; $('status').textContent='Cargando…';message('');render();
+  if(source)video.src=source;else video.removeAttribute("src"); video.load(); $('title').textContent=title; $('status').textContent='Cargando…';message('');render();
 }
 $('file').addEventListener('change', e=>{const file=e.target.files[0];if(file)load(file,file.name);});
 $('urlForm').addEventListener('submit', e=>{e.preventDefault();try{const url=new URL($('url').value);if(!['https:','http:'].includes(url.protocol))throw Error();load(url.href,'Video desde enlace');}catch{message('Introduce un enlace HTTP o HTTPS válido.');}});

@@ -9,14 +9,12 @@ Local: `python -m http.server 8080` o Live Server. No abrir index.html por file:
 ## Cuenta
 Solo usuario (3–24 letras ASCII, números o guion bajo) y contraseña (8–128 caracteres). No se distingue mayúsculas en el usuario. No requiere correo ni confirmación y entra automáticamente al crear cuenta. Guarda la contraseña: por ahora no hay recuperación por correo. Las cuentas antiguas por correo siguen pudiendo iniciar sesión escribiendo su correo en el campo de usuario; no se migran ni se borran automáticamente.
 
-## Ver juntos
-1. Crea una cuenta o inicia sesión.
-2. Carga un enlace directo HTTPS de un video autorizado que ambos puedan abrir.
-3. Escribe el usuario de tu acompañante y crea la sala.
-4. Copia la invitación. Tu acompañante entra con su cuenta y pulsa Entrar a la sala.
-5. El anfitrión controla reproducción, pausa y avance. Cada persona carga sus subtítulos ES/EN (SRT/VTT) y elige idioma y volumen.
+## Pantalla simple
+- **Crear sala**: inicia sesión si es necesario; se crea antes de elegir el video. Comparte el código mostrado.
+- **Unirse a sala**: escribe el código e inicia sesión con tu usuario. Solo admite anfitrión y un acompañante. Quien tenga el código puede ocupar la segunda plaza; no lo publiques.
+- **Ver en solitario**: entra sin cuenta.
 
-La sincronización consulta el estado cada 3 segundos y guarda referencias cada 10 segundos al reproducir; depende de red y relojes. No es exacta. Pulsa Activar reproducción si el navegador bloquea el audio. La sala no transmite archivos locales. Estos solo funcionan en el reproductor individual.
+Dentro de la sala aparecen los usuarios y su estado de conexión (actualizado por latidos cada 10 s; desconexión estimada tras 35 s). Los iconos son provisionales, no personajes del Universo. El anfitrión elige un enlace directo HTTPS y controla el video; cada uno elige subtítulos y volumen. Los archivos locales son solo para modo solitario. Ajustes de subtítulos plegados por defecto.
 
 ## Backend desplegado
 Proyecto: suvcdkqqwrodwxgmcjej, cuenta PruebasX.
@@ -29,3 +27,5 @@ Proyecto: suvcdkqqwrodwxgmcjej, cuenta PruebasX.
 ## Validación
 `npm test`; `node --check rooms.js`.
 Se verificó en servidor registro, inicio de sesión y rechazo de usuario duplicado con cuenta temporal; pruebas de RLS para anfitrión, invitado y tercero en transacción revertida. Falta prueba de reproducción completa con dos dispositivos reales. No incluye catálogo, HLS, chat, presencia ni recuperación de contraseña. No se integra aún en Nuestro Universo.
+
+Salas simplificadas: RPC animejj_room_action con autenticación obligatoria, código de 12 caracteres, ingreso atómico con bloqueo de fila y límite de intentos. Función privilegiada en esquema privado y envoltura pública sin privilegios elevados. Pruebas transaccionales: código generado, segunda plaza, rechazo de tercero y latidos sin alterar el reloj de reproducción. SQL aplicado conservado en supabase/simple-rooms.sql.

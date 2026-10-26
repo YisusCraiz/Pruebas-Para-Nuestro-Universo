@@ -1,113 +1,42 @@
-import {normalizeUsername,usernameEmail,displayUsername} from './username.js?v=20261026-auth2';
-import {playbackTarget, safeVideoUrl} from './sync.js';
-const $ = id => document.getElementById(id);
-const say = text => $('roomMessage').textContent = text;
-let client, user, room, timer, applying = false, pending = false, lastVersion = '', disposed = false;
-let player;
-export function canLoadSource(source) {return !room || applying || (room.owner_id===user?.id && typeof source==='string' && source.startsWith('https://'));}
-const inviteId = new URLSearchParams(location.search).get('room');
-if (inviteId) $('roomId').value = inviteId;
-function check(error) { if (error) throw error; }
-function explain(error) {
-  const message = error?.message || 'No pudimos completar la operación.';
-  say(/schema cache|does not exist|Could not find the table/i.test(message) ? 'Falta preparar Supabase: ejecuta supabase/setup.sql en el SQL Editor de la cuenta alterna.' : message);
-}
-function authUI() {
-  $('accountStatus').textContent = user ? `Sesión: ${displayUsername(user)}` : 'Sin sesión · Puedes seguir usando el reproductor';
-  $('authForm').hidden = !!user; $('logout').hidden = !user; $('roomControls').hidden = !user;
-}
-async function leave() {
-  clearInterval(timer); timer=null; room=null; lastVersion='';
-  if(player)player.video.controls=true;
-  $('roomStatus').textContent='Sin sala';$('leaveRoom').hidden=true;$('copyRoom').hidden=true;
-}
-async function useRoom(next) {
-  player.video.pause();
-  await leave(); room=next; $('roomId').value=room.id;
-  $('leaveRoom').hidden=false;$('copyRoom').hidden=false;
-  await apply(next);
-  timer=setInterval(refresh,3000);
-}
-async function apply(next) {
-  if(!room || next.id!==room.id)return;
-  room=next;
-  const host=room.owner_id===user?.id;
-  $('roomStatus').textContent=host?'Eres anfitrión · Tú controlas el video':'Invitado · Siguiendo al anfitrión';
-  player.video.controls=host;
-  if(host){if(player.source()!==room.media_url){applying=true;player.load(room.media_url,'Video de la sala');applying=false;}return;}
-  applying=true;
-  try {
-    if(player.source()!==room.media_url){player.load(room.media_url,'Video de la sala');lastVersion='';}
-    if(player.video.readyState<1)return;
-    const target=Math.min(playbackTarget(room),Number.isFinite(player.video.duration)?player.video.duration:Infinity);
-    if(Math.abs(player.video.currentTime-target)>1.5)player.video.currentTime=target;
-    if(room.playing && player.video.paused){try{await player.video.play();}catch{say('Pulsa «Activar reproducción» para permitir el audio en este dispositivo.');}}
-    if(!room.playing && !player.video.paused)player.video.pause();
-    lastVersion=room.updated_at;
-  } finally {applying=false;}
-}
-async function refresh() {
-  if(!room||pending||document.hidden)return;
-  const id=room.id;
-  try {const {data,error}=await client.from('animejj_rooms').select('*').eq('id',id).single();check(error);await apply(data);}
-  catch(error){explain(error);}
-}
-async function publish() {
-  if(!room||room.owner_id!==user?.id||applying||pending||player.video.readyState<1)return;
-  pending=true;
-  try {
-    const media_url=safeVideoUrl(player.source());
-    const {data,error}=await client.from('animejj_rooms').update({media_url,position:player.video.currentTime,playing:!player.video.paused&&!player.video.ended}).eq('id',room.id).select().single();check(error);room=data;
-  }catch(error){explain(error);}finally{pending=false;}
-}
-const run = fn => async event => {event?.preventDefault();try{await fn(event);}catch(error){explain(error);}};
-export async function initRooms(adapter) {
-  player=adapter;
-  try {
-    const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm');
-    client=createClient('https://suvcdkqqwrodwxgmcjej.supabase.co','sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50');
-    const {data,error}=await client.auth.getSession();check(error);user=data.session?.user;authUI();
-    client.auth.onAuthStateChange((_event,session)=>{const previous=user?.id;user=session?.user;authUI();if(previous&&previous!==user?.id)void leave();});
-    for(const button of $('authForm').querySelectorAll('button[value]')) button.addEventListener('click',()=>{$('authForm').dataset.action=button.value;});
-    $('authForm').addEventListener('submit',run(async event=>{
-      const action=event.submitter?.value || $('authForm').dataset.action || 'login';
-      const name=$('email').value.trim(),password=$('password').value;
-      const buttons=[...$('authForm').querySelectorAll('button')];buttons.forEach(button=>button.disabled=true);
-      try {
-        if(action==='signup') {
-          const username=normalizeUsername(name);
-          const response=await fetch('https://suvcdkqqwrodwxgmcjej.supabase.co/functions/v1/animejj-register',{method:'POST',headers:{'Content-Type':'application/json','apikey':'sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50'},body:JSON.stringify({username,password})});
-          const result=await response.json();if(!response.ok)throw Error(result.error||'No pudimos crear la cuenta.');
-          const {error}=await client.auth.signInWithPassword({email:usernameEmail(username),password});if(error)throw Error('La cuenta se creó, pero no pudimos iniciar sesión. Pulsa Entrar con el mismo usuario y contraseña.');
-          say('¡Cuenta creada! Ya puedes crear una sala.');
-        }else {
-          const email=name.includes('@')?name.toLowerCase():usernameEmail(name);
-          const {error}=await client.auth.signInWithPassword({email,password});
-          if(error)throw Error('No pudimos iniciar sesión. Revisa tu usuario y contraseña.');
-          say('Sesión iniciada.');
-        }
-      }finally{buttons.forEach(button=>button.disabled=false);}
-      $('password').value='';
-    }));
-    $('logout').addEventListener('click',run(async()=>{await leave();const {error}=await client.auth.signOut();check(error);say('Sesión cerrada.');}));
-    $('createRoom').addEventListener('click',run(async()=>{
-      const media_url=safeVideoUrl(player.source());const guest_email=usernameEmail($('guestEmail').value);
-      if(!guest_email||!$('guestEmail').checkValidity())throw Error('Escribe el usuario de la cuenta que vas a invitar.');
-      if(guest_email===user.email.toLowerCase())throw Error('Invita a una cuenta diferente a la tuya.');
-      const {data,error}=await client.from('animejj_rooms').insert({owner_id:user.id,guest_email,media_url,position:0,playing:false}).select().single();check(error);player.video.pause();await useRoom(data);say('Sala creada. Copia la invitación y envíasela a tu acompañante.');
-    }));
-    $('joinRoom').addEventListener('click',run(async()=>{
-      const id=$('roomId').value.trim();if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))throw Error('Pega el identificador de sala de la invitación.');
-      const {data,error}=await client.from('animejj_rooms').select('*').eq('id',id).maybeSingle();check(error);
-      if(!data)throw Error('Sala no encontrada o tu usuario no está invitado.');await useRoom(data);say('Sala conectada. Cada persona carga sus subtítulos en su dispositivo.');
-    }));
-    $('leaveRoom').addEventListener('click',run(async()=>{await leave();say('Saliste de la sala.');}));
-    $('copyRoom').addEventListener('click',run(async()=>{const url=new URL(location.href);url.search='';url.searchParams.set('room',room.id);try{await navigator.clipboard.writeText(url.href);say('Invitación copiada.');}catch{$('invitation').value=url.href;$('invitation').hidden=false;$('invitation').select();say('Copia el enlace del campo de invitación.');}}));
-    $('unlockPlayback').addEventListener('click',run(async()=>{if(!room)throw Error('Entra primero a una sala.');await player.video.play();await refresh();}));
-    for(const event of ['play','pause','seeked','ended'])player.video.addEventListener(event,()=>{void publish();});
-    setInterval(()=>{if(room?.owner_id===user?.id&&!player.video.paused)void publish();},10000);
-    player.video.addEventListener('loadedmetadata',()=>{if(room&&room.owner_id!==user?.id)void refresh();});
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh();});
-    say('Conexión configurada. Inicia sesión para probar las salas.');
-  }catch(error){explain(error);$('accountStatus').textContent='La conexión de cuentas no está disponible. El reproductor local sigue funcionando.';}
+import {normalizeUsername,usernameEmail,displayUsername} from './username.js?v=20261026-simple1';
+import {playbackTarget,safeVideoUrl} from './sync.js';
+const $=id=>document.getElementById(id), say=text=>$('roomMessage').textContent=text;
+let client,user,player,room,timer,heartbeat,applying=false,publishing=false,queued=false,pendingAction=null,offline=false;
+export function canLoadSource(source){return !room||applying||(room.owner_id===user?.id&&typeof source==='string'&&source.startsWith('https://'));}
+function check(error){if(error)throw error;}
+function fail(error){say(error?.message||'No pudimos completar la acción.');}
+const run=fn=>async event=>{event?.preventDefault();try{await fn(event);}catch(error){fail(error);}};
+function account(){ $('accountStatus').textContent=user?`Conectado como ${displayUsername(user)}`:'';$('logout').hidden=!user; }
+function online(seen){return seen&&Date.now()-Date.parse(seen)<35000;}
+function members(){const el=$('participants');el.replaceChildren();if(!room)return;
+for(const [name,seen,icon] of [[room.owner_name,room.owner_seen,'✦'],[room.guest_name,room.guest_seen,'♡']]){
+ const card=document.createElement('div');card.className='member';const avatar=document.createElement('span');avatar.className='avatar';avatar.textContent=icon;
+ const label=document.createElement('div'),title=document.createElement('strong'),status=document.createElement('small');title.textContent=name||'Esperando acompañante…';status.textContent=name?(online(seen)?'● Conectado':'○ Desconectado'):'Comparte el código';label.append(title,status);card.append(avatar,label);el.append(card);
+}}
+async function rpc(action,extra={}){const {data,error}=await client.rpc('animejj_room_action',{action,...extra});check(error);return Array.isArray(data)?data[0]:data;}
+async function leave(){clearInterval(timer);clearInterval(heartbeat);const old=room;room=null;player.video.pause();player.video.controls=true;$('sourceControls').hidden=false;if(old&&client)try{await rpc('leave',{rid:old.id});}catch{} }
+async function home(){await leave();$('home').hidden=false;$('authPanel').hidden=true;$('watchArea').hidden=true;$('unlockPlayback').hidden=true;say('');}
+function watch(){ $('home').hidden=true;$('authPanel').hidden=true;$('watchArea').hidden=false;$('roomCodeArea').hidden=!room;$('participants').hidden=!room;$('unlockPlayback').hidden=!room; }
+async function solo(){await leave();watch();$('roomStatus').textContent='Ver en solitario';say('Elige un video. Puedes abrir los ajustes de subtítulos cuando los necesites.');}
+function requireAccount(action){if(user)return true;pendingAction=action;$('home').hidden=true;$('authPanel').hidden=false;say('Inicia sesión para que tu acompañante vea tu nombre.');return false;}
+function codeText(code){return (code||'').match(/.{1,4}/g)?.join('-')||'';}
+async function enter(next){await leave();room=next;applying=true;player.load('', 'El anfitrión elegirá el episodio');applying=false;watch();$('roomCode').textContent=codeText(room.join_code);await apply(next);timer=setInterval(refresh,3000);heartbeat=setInterval(()=>{if(room&&!document.hidden)void rpc('heartbeat',{rid:room.id}).catch(fail);},10000);say('Sala lista. Comparte el código para conectarse.');}
+async function create(){if(offline)throw Error('No se pudo conectar. Puedes usar el modo solitario.');if(!requireAccount(create))return;const data=await rpc('create');if(!data?.id)throw Error('No pudimos crear la sala.');await enter(data);}
+async function join(){if(offline)throw Error('No se pudo conectar. Puedes usar el modo solitario.');if(!requireAccount(join))return;const code=$('roomId').value.replace(/[-\s]/g,'').toUpperCase();if(!/^[A-F0-9]{12}$/.test(code))throw Error('Escribe el código de 12 caracteres de la sala.');const data=await rpc('join',{code});if(!data?.id)throw Error('Código incorrecto, sala ocupada o demasiados intentos.');await enter(data);}
+async function apply(next){if(!room||next.id!==room.id)return;room=next;members();const host=room.owner_id===user?.id;$('sourceControls').hidden=!host;player.video.controls=host;$('roomStatus').textContent=room.media_url?(host?'Tu sala · Tú controlas el video':'Juntos · Siguiendo al anfitrión'):(host?'Tu sala · Elige un episodio':'Esperando que el anfitrión elija un episodio');
+ applying=true;try{if(room.media_url&&player.source()!==room.media_url)player.load(room.media_url,'Episodio de la sala');if(host||!room.media_url||player.video.readyState<1)return;const target=Math.min(playbackTarget(room),Number.isFinite(player.video.duration)?player.video.duration:Infinity);if(Math.abs(player.video.currentTime-target)>1.5)player.video.currentTime=target;if(room.playing&&player.video.paused)try{await player.video.play();}catch{say('Pulsa Activar reproducción para permitir el audio.');}if(!room.playing&&!player.video.paused)player.video.pause();}finally{applying=false;}}
+async function refresh(){if(!room||publishing||document.hidden)return;const id=room.id;try{const {data,error}=await client.from('animejj_rooms').select('*').eq('id',id).single();check(error);await apply(data);}catch(error){fail(error);}}
+async function publish(){if(!room||room.owner_id!==user?.id||applying||player.video.readyState<1)return;if(publishing){queued=true;return;}publishing=true;try{const media_url=safeVideoUrl(player.source());const id=room.id;const {data,error}=await client.from('animejj_rooms').update({media_url,position:player.video.currentTime,playing:!player.video.paused&&!player.video.ended}).eq('id',id).select().single();check(error);if(room?.id===id)room=data;}catch(error){fail(error);}finally{publishing=false;if(queued){queued=false;void publish();}}}
+export async function initRooms(adapter){player=adapter;
+ $('solo').addEventListener('click',run(solo));$('showJoin').addEventListener('click',()=>{$('joinForm').hidden=!$('joinForm').hidden;if(!$('joinForm').hidden)$('roomId').focus();});$('leaveRoom').addEventListener('click',run(home));$('cancelAuth').addEventListener('click',run(home));
+ $('createRoom').addEventListener('click',run(create));$('joinForm').addEventListener('submit',run(join));
+ $('copyRoom').addEventListener('click',run(async()=>{if(!room)return;const code=codeText(room.join_code);try{await navigator.clipboard.writeText(code);say('Código copiado. Compártelo con tu acompañante.');}catch{$('invitation').value=code;$('invitation').hidden=false;$('invitation').select();say('Copia el código del campo.');}}));
+ $('unlockPlayback').addEventListener('click',run(async()=>{if(room){await player.video.play();await refresh();}}));
+ try{const {createClient}=await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.4/+esm');client=createClient('https://suvcdkqqwrodwxgmcjej.supabase.co','sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50');const {data,error}=await client.auth.getSession();check(error);user=data.session?.user;account();client.auth.onAuthStateChange((_event,session)=>{const previous=user?.id;user=session?.user;account();if(previous&&previous!==user?.id)void home();});
+ for(const button of $('authForm').querySelectorAll('button[value]'))button.addEventListener('click',()=>{$('authForm').dataset.action=button.value;});
+ $('authForm').addEventListener('submit',run(async event=>{const action=event.submitter?.value||$('authForm').dataset.action||'login',name=$('email').value.trim(),password=$('password').value;const buttons=[...$('authForm').querySelectorAll('button')];buttons.forEach(b=>b.disabled=true);try{if(action==='signup'){const username=normalizeUsername(name);const response=await fetch('https://suvcdkqqwrodwxgmcjej.supabase.co/functions/v1/animejj-register',{method:'POST',headers:{'Content-Type':'application/json',apikey:'sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50'},body:JSON.stringify({username,password})});const result=await response.json();if(!response.ok)throw Error(result.error||'No pudimos crear la cuenta.');}const email=name.includes('@')?name.toLowerCase():usernameEmail(name);const {error}=await client.auth.signInWithPassword({email,password});if(error)throw Error('Revisa tu usuario y contraseña.');$('password').value='';const next=pendingAction;pendingAction=null;if(next)await next();else await home();}finally{buttons.forEach(b=>b.disabled=false);}}));
+ $('logout').addEventListener('click',run(async()=>{await home();const {error}=await client.auth.signOut();check(error);}));
+ for(const event of ['play','pause','seeked','ended','loadedmetadata'])player.video.addEventListener(event,()=>{if(room?.owner_id===user?.id)void publish();else if(event==='loadedmetadata')void refresh();});
+ setInterval(()=>{if(room?.owner_id===user?.id&&!player.video.paused)void publish();},10000);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&room){void rpc('heartbeat',{rid:room.id}).catch(fail);void refresh();}});
+ }catch(error){offline=true;fail(Error('Las salas no están disponibles ahora. Puedes ver en solitario.'));}
 }
