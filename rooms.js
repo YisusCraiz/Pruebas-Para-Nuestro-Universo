@@ -1,4 +1,4 @@
-import {normalizeUsername,usernameEmail,displayUsername} from './username.js?v=20261026-catalog1';
+import {normalizeUsername,usernameEmail,displayUsername} from './username.js?v=20261026-discover1';
 import {playbackTarget,safeVideoUrl} from './sync.js';
 const $=id=>document.getElementById(id), say=text=>$('roomMessage').textContent=text;
 let client,user,player,room,timer,heartbeat,applying=false,publishing=false,queued=false,pendingAction=null,offline=false;
@@ -16,7 +16,7 @@ for(const [name,seen,icon] of [[room.owner_name,room.owner_seen,'✦'],[room.gue
 async function rpc(action,extra={}){const {data,error}=await client.rpc('animejj_room_action',{action,...extra});check(error);return Array.isArray(data)?data[0]:data;}
 async function leave(){clearInterval(timer);clearInterval(heartbeat);const old=room;room=null;player.video.pause();player.video.controls=true;$('sourceControls').hidden=false;if(old&&client)try{await rpc('leave',{rid:old.id});}catch{} }
 async function home(){await leave();$('home').hidden=false;$('authPanel').hidden=true;$('watchArea').hidden=true;$('unlockPlayback').hidden=true;say('');}
-function watch(){ $('home').hidden=true;$('authPanel').hidden=true;$('watchArea').hidden=false;$('roomCodeArea').hidden=!room;$('participants').hidden=!room;$('unlockPlayback').hidden=!room; }
+function watch(){ document.dispatchEvent(new Event('animejj:watch')); $('home').hidden=true;$('authPanel').hidden=true;$('watchArea').hidden=false;$('roomCodeArea').hidden=!room;$('participants').hidden=!room;$('unlockPlayback').hidden=!room; }
 async function solo(){await leave();watch();$('roomStatus').textContent='Ver en solitario';say('Elige un video. Puedes abrir los ajustes de subtítulos cuando los necesites.');}
 function requireAccount(action){if(user)return true;pendingAction=action;$('home').hidden=true;$('authPanel').hidden=false;say('Inicia sesión para que tu acompañante vea tu nombre.');return false;}
 function codeText(code){return (code||'').match(/.{1,4}/g)?.join('-')||'';}

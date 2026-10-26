@@ -1,46 +1,38 @@
-# AnimeJJ · Laboratorio
-Pruebas independientes de Nuestro Universo.
+# AnimeJJ · Pruebas para Nuestro Universo
+Página: https://yisuscraiz.github.io/Pruebas-Para-Nuestro-Universo/
 
-## Abrir
-https://yisuscraiz.github.io/Pruebas-Para-Nuestro-Universo/
+## Uso
+La entrada conserva tres botones: **Crear sala**, **Unirse a sala** y **Ver en solitario**.
 
-Local: `python -m http.server 8080` o Live Server. No abrir index.html por file://.
+- Crear sala pide iniciar sesión solo si hace falta y da un código para la otra persona. Permite elegir el video después de crearla.
+- Unirse pide el código. Solo hay lugar para anfitrión y un acompañante; comparte el código de forma privada.
+- Solitario entra sin cuenta.
 
-## Cuenta
-Solo usuario (3–24 letras ASCII, números o guion bajo) y contraseña (8–128 caracteres). No se distingue mayúsculas en el usuario. No requiere correo ni confirmación y entra automáticamente al crear cuenta. Guarda la contraseña: por ahora no hay recuperación por correo. Las cuentas antiguas por correo siguen pudiendo iniciar sesión escribiendo su correo en el campo de usuario; no se migran ni se borran automáticamente.
+Las cuentas nuevas usan nombre de usuario y contraseña, sin correo ni confirmación. Usuario: 3–24 letras ASCII, números o guion bajo. Contraseña: 8–128 caracteres. Las cuentas antiguas por correo pueden escribir su correo en el campo de usuario. No hay recuperación por correo para las nuevas cuentas.
 
-## Pantalla simple
-- **Crear sala**: inicia sesión si es necesario; se crea antes de elegir el video. Comparte el código mostrado.
-- **Unirse a sala**: escribe el código e inicia sesión con tu usuario. Solo admite anfitrión y un acompañante. Quien tenga el código puede ocupar la segunda plaza; no lo publiques.
-- **Ver en solitario**: entra sin cuenta.
+## Catálogo
+Después de entrar aparece:
+- **Para probar**: tres referencias verificadas de canales oficiales Pokémon, con ficha y selección de episodio.
+- **Explorar anime**: búsqueda paginada de AniList con portadas, sinopsis, año, número de episodios e historias relacionadas. La API puede estar caída o limitar consultas; se informa el error y se conserva la selección de prueba.
+- **Mi lista**: títulos guardados en este dispositivo. No se sincronizan con otra cuenta, navegador ni dispositivo.
 
-Dentro de la sala aparecen los usuarios y su estado de conexión (actualizado por latidos cada 10 s; desconexión estimada tras 35 s). Los iconos son provisionales, no personajes del Universo. El anfitrión elige un enlace directo HTTPS y controla el video; cada uno elige subtítulos y volumen. Los archivos locales son solo para modo solitario. Ajustes de subtítulos plegados por defecto.
+Una ficha no garantiza reproducción. Solo los episodios con fuente integrada se abren en AnimeJJ. Los enlaces de otras plataformas se identifican como externos, pueden exigir cuenta/suscripción y no se sincronizan con la sala. No se promete audio/subtítulos en idiomas que la fuente no haya confirmado. Las sinopsis aparecen en el idioma entregado por AniList.
 
-## Backend desplegado
-Proyecto: suvcdkqqwrodwxgmcjej, cuenta PruebasX.
-- Tabla animejj_rooms y RLS aplicadas. Solo anfitrión/invitado pueden leer; solo anfitrión controla estado.
-- Función animejj-register desplegada: crea identidades Supabase Auth con identificador interno username@users.animejj.invalid. No es correo real. La API administrativa y claves privilegiadas solo se usan en servidor mediante secretos de Supabase.
-- Registro público con validación de usuario/contraseña y contador atómico: máximo 20 intentos por hora para el proyecto. La clave publicable identifica la app y no es un secreto ni protección contra abuso por sí sola.
-- Fuente del servidor en supabase/functions/animejj-register. Copia de las definiciones SQL en supabase/setup.sql y supabase/username-signup.sql. No hace falta volver a ejecutarlas en este proyecto.
-- El SDK del navegador usa jsDelivr y versión fija 2.57.4.
+## Reproductor
+YouTube oficial mediante IFrame API, archivos locales MP4/WebM y enlaces HTTPS directos. Ahora acepta HLS (.m3u8) con hls.js fijado a 1.6.13 o HLS nativo. Calidad/audio se muestran solo cuando el stream los ofrece. CORS y compatibilidad de codecs dependen del origen y navegador. No extrae streams de páginas arbitrarias ni integra servicios con DRM.
 
-## Validación
-`npm test`; `node --check rooms.js`.
-Se verificó en servidor registro, inicio de sesión y rechazo de usuario duplicado con cuenta temporal; pruebas de RLS para anfitrión, invitado y tercero en transacción revertida. Falta prueba de reproducción completa con dos dispositivos reales. No incluye catálogo, HLS, chat, presencia ni recuperación de contraseña. No se integra aún en Nuestro Universo.
+YouTube usa sus propios subtítulos, controles y disponibilidad regional. Los subtítulos SRT/VTT locales y dobles ES/EN son para video directo. Los archivos locales permanecen en el dispositivo y no se transmiten a la sala.
 
-Salas simplificadas: RPC animejj_room_action con autenticación obligatoria, código de 12 caracteres, ingreso atómico con bloqueo de fila y límite de intentos. Función privilegiada en esquema privado y envoltura pública sin privilegios elevados. Pruebas transaccionales: código generado, segunda plaza, rechazo de tercero y latidos sin alterar el reloj de reproducción. SQL aplicado conservado en supabase/simple-rooms.sql.
+Continuar viendo guarda el minuto de fuentes HTTPS en el navegador, sin guardar archivos locales, contraseñas ni tokens. El historial no es compartido. Su recuperación desde otra cuenta del mismo navegador puede mostrar los mismos títulos guardados porque el almacenamiento es del dispositivo.
 
-## Primera fuente externa: YouTube oficial
-El reproductor usa YouTube IFrame Player API, sin extraer streams ni alojar videos. Hay tres referencias iniciales publicadas por los canales oficiales de Pokémon: Liga Añil episodio 1 en español, Twilight Wings episodio 1 y Paldean Winds episodio 1 en inglés. La selección se mantiene en sources.js y no representa el catálogo completo de esas series. Los videos pueden ser retirados o restringidos por país o por el dueño; los errores del reproductor se muestran sin intentar eludir restricciones.
+## Salas y backend
+Supabase PruebasX: proyecto suvcdkqqwrodwxgmcjej. Tablas, RLS, RPC y registro ya desplegados. Fuentes en supabase/.
+Solo miembros pueden leer la sala; solo anfitrión modifica video/posición. Los participantes se muestran con nombre e iconos provisionales. Los personajes de Nuestro Universo aún no se conectan. Consulta de sincronización cada 3 s, referencia de reproducción cada 10 s, presencia cada 10 s y desconexión estimada a los 35 s. No es sincronización exacta y puede diferir por anuncios/buffering/autoplay.
 
-El anfitrión puede elegir un episodio desde las tarjetas o pegar un enlace YouTube HTTPS; la referencia se comparte mediante el campo media_url existente. El adaptador player.js expone reproducción, pausa, posición y duración a las salas. Los controles propios de YouTube siguen accesibles para volumen, CC y pantalla completa; el invitado sigue el estado del anfitrión en cada consulta. La sincronización es experimental y puede diferir por anuncios, buffering, permisos de autoplay y red.
+El registro servidor usa API administrativa con secreto de entorno, nunca en el navegador. Máximo 20 intentos de registro por hora del proyecto. La clave publicable de cliente no es un secreto. No se ha cambiado la configuración de seguridad global ni integrado la página de producción de Nuestro Universo.
 
-En YouTube no se superponen subtítulos locales ni se ofrecen subtítulos dobles; usa las pistas disponibles en su reproductor. Los archivos locales y videos directos conservan SRT/VTT dobles. Ninguna etiqueta promete pistas ES/EN no verificadas. La miniatura de YouTube y sus recursos solo se solicitan al seleccionar un video; la selección inicial usa tarjetas de texto.
+## Desarrollo y verificación
+Servidor local: `python -m http.server 8080` o Live Server. No abrir index.html por file://.
+`npm test` ejecuta las pruebas. Módulos JS sin proceso de build; GitHub Pages publica main desde la raíz. Los cambios llevan versión de recursos para evitar usar módulos de interfaz antiguos.
 
-Referencias de contenido:
-- https://www.youtube.com/watch?v=4gVnBT0t8hQ (PokemonOficialES)
-- https://press.pokemon.com/en/MEDIA-ALERT-New-Animated-Series-Pokemon-Twilight-Wings-Launches-Today (enlace oficial a rYDmL5VH-uk)
-- https://www.youtube.com/watch?v=uyMxQl-PeJE (The Official Pokémon YouTube channel)
-- API: https://developers.google.com/youtube/iframe_api_reference
-
-Validación: diez pruebas automáticas, incluidas URLs y transición YouTube/video directo con adaptador simulado. No equivale a validar un capítulo completo en dos dispositivos ni disponibilidad desde México y Estados Unidos.
+Consulta docs/provider-review.md para fuentes revisadas, respuestas observadas, decisiones y límites. La entrega amplía catálogo/interfaz/reproductor; **todavía no incorpora un proveedor amplio de episodios**. Falta validar un capítulo completo en dos dispositivos reales.

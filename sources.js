@@ -13,3 +13,5 @@ export const catalog=[
  {id:'uyMxQl-PeJE',series:'Pokémon: Paldean Winds',episode:'Episodio 1 · Breathe Out',language:'English',channel:'The Official Pokémon YouTube channel'}
 ];
 export function videoUrl(item){return `https://www.youtube.com/watch?v=${item.id}`;}
+
+export function isHlsUrl(value){try{const url=new URL(value);return url.protocol==='https:'&&/\.m3u8$/i.test(url.pathname);}catch{return false;}}

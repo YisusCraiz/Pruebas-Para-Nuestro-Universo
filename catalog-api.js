@@ -1,0 +1,27 @@
+const API='https://graphql.anilist.co';
+const SUMMARY='id idMal title{romaji english native} coverImage{large} startDate{year} episodes format genres averageScore siteUrl';
+const cache=new Map();
+let cooldown=0;
+export function plainText(value){return String(value||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();}
+export function httpsUrl(value){try{const url=new URL(value);return url.protocol==='https:'?url.href:null;}catch{return null;}}
+export function normalizeMedia(raw){
+ if(!raw||!Number.isInteger(raw.id))throw Error('La ficha recibida no es válida.');
+ return {key:`anilist:${raw.id}`,provider:'anilist',id:raw.id,malId:raw.idMal||null,title:raw.title?.english||raw.title?.romaji||raw.title?.native||'Sin título',titles:Object.values(raw.title||{}).filter(Boolean),cover:httpsUrl(raw.coverImage?.large),year:raw.startDate?.year||null,episodes:raw.episodes||null,format:raw.format||'',genres:raw.genres||[],score:raw.averageScore||null,description:plainText(raw.description),pageUrl:httpsUrl(raw.siteUrl),
+ streaming:(raw.streamingEpisodes||[]).map(e=>({title:e.title||'Episodio',url:httpsUrl(e.url),site:e.site||'Plataforma externa'})).filter(e=>e.url),
+ links:(raw.externalLinks||[]).filter(e=>e.type==='STREAMING').map(e=>({site:e.site||'Plataforma',url:httpsUrl(e.url),language:e.language||null})).filter(e=>e.url),
+ relations:(raw.relations?.edges||[]).filter(e=>e.node?.type==='ANIME').map(e=>({...normalizeMedia(e.node),relation:e.relationType}))};
+}
+async function query(query,variables,signal){
+ const key=JSON.stringify({query,variables});const entry=cache.get(key);if(entry&&Date.now()-entry.time<300000)return entry.data;
+ if(Date.now()<cooldown)throw Error('El catálogo está recibiendo muchas consultas. Espera un momento y vuelve a buscar.');
+ const controller=new AbortController(),abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)controller.abort();const timer=setTimeout(abort,12000);
+ try{const response=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({query,variables}),signal:controller.signal});
+ if(response.status===429){cooldown=Date.now()+Math.max(1,Number(response.headers.get('Retry-After'))||60)*1000;throw Error('El catálogo pidió una pausa. Vuelve a intentarlo en un minuto.');}
+ if(!response.ok)throw Error('El catálogo externo no está disponible ahora. Los episodios de prueba siguen disponibles.');
+ const result=await response.json();if(result.errors?.length||!result.data)throw Error('No pudimos obtener la información del catálogo.');
+ if(cache.size>=30)cache.delete(cache.keys().next().value);cache.set(key,{time:Date.now(),data:result.data});return result.data;
+ }catch(error){if(signal?.aborted)throw new DOMException('Cancelado','AbortError');if(controller.signal.aborted)throw Error('El catálogo tardó demasiado. Puedes intentar de nuevo.');if(error instanceof TypeError)throw Error('No se pudo conectar con el catálogo. Los episodios de prueba siguen disponibles.');throw error;}
+ finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
+}
+export async function searchAnime(search='',page=1,signal){const term=search.trim().slice(0,100);const data=await query(`query($search:String,$page:Int){Page(page:$page,perPage:12){pageInfo{hasNextPage currentPage} media(type:ANIME,isAdult:false,search:$search,sort:POPULARITY_DESC){${SUMMARY}}}}`,{search:term||null,page},signal);return {items:data.Page.media.map(normalizeMedia),hasNext:!!data.Page.pageInfo.hasNextPage};}
+export async function animeDetails(id,signal){if(!Number.isInteger(id)||id<=0)throw Error('Identificador de anime inválido.');const data=await query(`query($id:Int){Media(id:$id,type:ANIME){${SUMMARY} description(asHtml:false) streamingEpisodes{title url site} externalLinks{site url type language} relations{edges{relationType node{${SUMMARY} type}}}}}`,{id},signal);return normalizeMedia(data.Media);}
