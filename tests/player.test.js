@@ -19,3 +19,11 @@ test('HLS adapter attaches a manifest and releases its engine when changing sour
  const native=new Native(),player=new MediaPlayer(native,{hidden:true});
  try{await player.setSource('https://example.org/master.m3u8');assert.equal(engine.url,'https://example.org/master.m3u8');assert.equal(engine.element,native);assert.equal(player.qualityOptions()[0].label,'720p');assert.equal(player.audioOptions()[0].label,'English');player.setQuality(0);assert.equal(engine.currentLevel,0);await player.setSource('https://example.org/video.mp4');assert.equal(engine.destroyed,true);assert.equal(player.hls,null);}finally{player.dispose();}
 });
+
+test('provider references stay stable and a late resolver cannot replace a newer video',async()=>{
+ globalThis.document={getElementById:()=>({hidden:false})};
+ class Native extends EventTarget{paused=true;currentTime=0;readyState=0;pause(){}load(){}removeAttribute(){}}
+ let finish,signal;const native=new Native(),player=new MediaPlayer(native,{hidden:true},{resolveSource:(_ref,s)=>{signal=s;return new Promise(resolve=>finish=resolve);}});
+ const ref='https://yisuscraiz.github.io/Pruebas-Para-Nuestro-Universo/?source=anizone&animeId=16498&episode=1';
+ try{const pending=player.setSource(ref);assert.equal(player.source,ref);await player.setSource('https://example.org/new.mp4');assert.equal(signal.aborted,true);finish({streams:[{url:'https://example.org/old.mp4'}]});await pending;assert.equal(native.src,'https://example.org/new.mp4');assert.equal(player.providerInfo,null);}finally{player.dispose();}
+});

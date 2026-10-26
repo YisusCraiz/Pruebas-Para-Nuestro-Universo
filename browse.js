@@ -1,6 +1,7 @@
-import {searchAnime,animeDetails,httpsUrl,posterUrl} from './catalog-api.js?v=20261026-discover3';
-import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-discover3';
-import {createLibrary} from './watch-library.js?v=20261026-discover3';
+import {availableEpisodes,streamReference} from './stream-api.js?v=20261026-streams1';
+import {searchAnime,animeDetails,httpsUrl,posterUrl} from './catalog-api.js?v=20261026-streams1';
+import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-streams1';
+import {createLibrary} from './watch-library.js?v=20261026-streams1';
 const $=id=>document.getElementById(id);
 const node=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
 const localItems=catalog.map(item=>({...item,key:`official:${item.id}`,provider:'official',title:item.series,cover:null,description:`${item.episode}. Publicado por ${item.channel}. Audio: ${item.language}.`,streaming:[],relations:[],links:[],episodes:null}));
@@ -24,7 +25,13 @@ export function initBrowse({load,video}){
  const playable=episodeMatches(item),external=item.streaming||[];
  const episodes=section('Episodios y disponibilidad');
  for(const episode of playable){const button=node('button',`${episode.episode} · ${episode.language}`,'episode-card');button.addEventListener('click',()=>watch(videoUrl(episode),`${episode.series} · ${episode.episode}`));episodes.append(button);}
- if(!playable.length)episodes.append(node('p','Todavía no hay una fuente integrada para reproducir esta serie dentro de AnimeJJ.','hint'));
+ if(item.provider==='anilist'){
+  const queryButton=node('button','Consultar capítulos para ver aquí','episode-card'),providerStatus=node('p','Fuente experimental. La disponibilidad y los idiomas dependen de cada capítulo.','hint'),list=node('div',undefined,'episode-list');
+  episodes.append(queryButton,providerStatus,list);let episodePage=1;const seenEpisodes=new Set();
+  const more=node('button','Cargar más capítulos','compact');more.hidden=true;episodes.append(more);
+  async function fetchEpisodes(){queryButton.disabled=true;more.disabled=true;providerStatus.textContent='Consultando capítulos disponibles…';try{const response=await availableEpisodes(item.id,episodePage,signal);if(signal.aborted)return;for(const entry of response.episodes){if(seenEpisodes.has(entry.number))continue;seenEpisodes.add(entry.number);const button=node('button',`Capítulo ${entry.number} · ${entry.title}`,'chapter-button');button.addEventListener('click',()=>watch(streamReference(item.id,entry.number),`${item.title} · Capítulo ${entry.number}`));list.append(button);}providerStatus.textContent=seenEpisodes.size?`${seenEpisodes.size} capítulos cargados. Los subtítulos se comprueban al abrir el video.`:'La fuente no devolvió capítulos disponibles.';queryButton.hidden=seenEpisodes.size>0;more.hidden=!response.hasMore;queryButton.textContent='Volver a consultar';}catch(error){if(error.name!=='AbortError'){providerStatus.textContent=error.message;queryButton.textContent='Reintentar consulta';if(episodePage>1)episodePage--;}}finally{queryButton.disabled=false;more.disabled=false;}}
+  queryButton.addEventListener('click',()=>{episodePage=1;void fetchEpisodes();});more.addEventListener('click',()=>{episodePage++;void fetchEpisodes();});
+ }else if(!playable.length)episodes.append(node('p','No hay episodios disponibles en esta ficha.','hint'));
  if(external.length){episodes.append(node('p','Estos episodios abren en su plataforma. Pueden requerir cuenta o suscripción y no se sincronizan con la sala.','hint'));for(const e of external.slice(0,50)){const link=node('a',`${e.title} ↗ · ${e.site}`,'external-episode');link.href=e.url;link.target='_blank';link.rel='noopener noreferrer';episodes.append(link);}if(external.length>50)episodes.append(node('p','Consulta la plataforma para los demás episodios.','hint'));}
  const seen=new Set(external.map(e=>e.url));for(const link of item.links||[]){if(seen.has(link.url))continue;seen.add(link.url);const a=node('a',`${link.site}${link.language?' · '+link.language:''} ↗`,'external-episode');a.href=link.url;a.target='_blank';a.rel='noopener noreferrer';episodes.append(a);}
  if(item.relations?.length){const related=section('Temporadas e historias relacionadas');for(const r of item.relations.slice(0,12)){const b=node('button',`${relationName(r.relation)} · ${r.title}`,'related-item');b.addEventListener('click',()=>void details(r));related.append(b);}}

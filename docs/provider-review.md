@@ -33,3 +33,12 @@ Documentación:
 La función animejj-catalog se desplegó en Supabase con dos operaciones fijas (search/details), destino único AniList, validación de parámetros, caché en memoria y límite preventivo de peticiones. No permite enviar consultas GraphQL arbitrarias ni URLs. Solo consume datos públicos y no lee tablas, usuarios ni secretos administrativos. La búsqueda real de Kimetsu respondió HTTP 200 a través de ella. La página usa esa función para resolver el fallo observado en la llamada directa desde el navegador. Esto habilita metadatos, no fuentes de video.
 
 Se verificó la búsqueda y ficha de Kimetsu desde la página publicada. La función de catálogo también sirve las portadas de AniList mediante una ruta GET que valida clave publicable y restringe host/ruta/formato/tamaño; no acepta destinos arbitrarios ni redirecciones. Esto evita el fallo de imágenes observado en el navegador de prueba. Los enlaces de streaming continúan siendo externos hasta integrar una fuente de video.
+
+## Conector experimental — 26 de octubre de 2026
+Se implementó animejj-streams con destinos fijos AniList/AniZone y pistas limitadas al CDN conocido. Parser de literales JSON sin eval, validación estricta de temporada, caché breve, tiempos máximos y límite preventivo por instancia. No accede a tablas ni secretos administrativos. La clave publicable identifica la app; no autentica a una persona y el límite por instancia no sustituye cuotas globales.
+
+Senshi respondió con episodios, pero su resolvedor vidcloud devolvió 404; no se activó. AniZone devolvió episodios y HLS para Attack on Titan (16498) y Kimetsu (101922). En Attack on Titan se verificaron página 1 (24 capítulos), página 2 (último capítulo), duración de video y reproducción desde la página en navegador. No se ha validado el contenido completo ni todas las temporadas, y los metadatos de archivos pueden contener títulos internos distintos.
+
+Las pistas de español/inglés existen en la respuesta; su descarga desde Supabase requiere verificación independiente y puede fallar aunque el video funcione. La interfaz informa errores y admite archivos locales. ASS usa texto plano seguro mediante textContent; no replica estilos avanzados. Las referencias guardadas contienen anime/episodio, no la URL temporal del CDN.
+
+El conector se mantiene experimental y aislado en este repositorio de pruebas. No está integrado con Nuestro Universo. Las pruebas automáticas cubren también coincidencias ambiguas, referencias falsas y cancelación de resoluciones antiguas.

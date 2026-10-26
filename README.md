@@ -21,7 +21,7 @@ Una ficha no garantiza reproducción. Solo los episodios con fuente integrada se
 ## Reproductor
 YouTube oficial mediante IFrame API, archivos locales MP4/WebM y enlaces HTTPS directos. Ahora acepta HLS (.m3u8) con hls.js fijado a 1.6.13 o HLS nativo. Calidad/audio se muestran solo cuando el stream los ofrece. CORS y compatibilidad de codecs dependen del origen y navegador. No extrae streams de páginas arbitrarias ni integra servicios con DRM.
 
-YouTube usa sus propios subtítulos, controles y disponibilidad regional. Los subtítulos SRT/VTT locales y dobles ES/EN son para video directo. Los archivos locales permanecen en el dispositivo y no se transmiten a la sala.
+YouTube usa sus propios subtítulos, controles y disponibilidad regional. Los subtítulos SRT/VTT/ASS locales y dobles ES/EN son para video directo. Los archivos locales permanecen en el dispositivo y no se transmiten a la sala.
 
 Continuar viendo guarda el minuto de fuentes HTTPS en el navegador, sin guardar archivos locales, contraseñas ni tokens. El historial no es compartido. Su recuperación desde otra cuenta del mismo navegador puede mostrar los mismos títulos guardados porque el almacenamiento es del dispositivo.
 
@@ -35,6 +35,8 @@ El registro servidor usa API administrativa con secreto de entorno, nunca en el 
 Servidor local: `python -m http.server 8080` o Live Server. No abrir index.html por file://.
 `npm test` ejecuta las pruebas. Módulos JS sin proceso de build; GitHub Pages publica main desde la raíz. Los cambios llevan versión de recursos para evitar usar módulos de interfaz antiguos.
 
-Consulta docs/provider-review.md para fuentes revisadas, respuestas observadas, decisiones y límites. La entrega amplía catálogo/interfaz/reproductor; **todavía no incorpora un proveedor amplio de episodios**. Falta validar un capítulo completo en dos dispositivos reales.
+Consulta docs/provider-review.md para fuentes revisadas, respuestas observadas, decisiones y límites. La entrega incorpora una conexión experimental a AniZone: ficha → consulta de capítulos → reproducción HLS. Solo se seleccionan coincidencias únicas por título, año, formato y número de episodios cuando está disponible. Incluye paginación, anterior/siguiente y referencias estables para salas/progreso. La disponibilidad y exactitud del contenido dependen de la fuente; no se garantiza todo el catálogo ni audio doblado. Falta validar un capítulo completo en dos dispositivos reales.
 
 La función animejj-catalog está desplegada y devuelve solo consultas públicas predefinidas de búsqueda y ficha. La clave publicable identifica el cliente; no concede acceso a datos privados. Hay validación de acciones/parámetros, tiempo máximo, caché breve y límite preventivo de peticiones por instancia. Se verificó respuesta real 200 para búsqueda de Kimetsu.
+
+Las pistas remotas ES/EN se consultan cuando la fuente las ofrece. ASS se presenta como texto plano (sin tipografía, posicionamiento ni karaoke). Si la fuente rechaza una pista se indica el error y se permite cargar un archivo local. Los videos van directamente del origen al navegador; Supabase no retransmite segmentos de video.
