@@ -1,3 +1,4 @@
+import {normalizeUsername,usernameEmail,displayUsername} from './username.js';
 import {playbackTarget, safeVideoUrl} from './sync.js';
 const $ = id => document.getElementById(id);
 const say = text => $('roomMessage').textContent = text;
@@ -12,7 +13,7 @@ function explain(error) {
   say(/schema cache|does not exist|Could not find the table/i.test(message) ? 'Falta preparar Supabase: ejecuta supabase/setup.sql en el SQL Editor de la cuenta alterna.' : message);
 }
 function authUI() {
-  $('accountStatus').textContent = user ? `Sesión: ${user.email}` : 'Sin sesión · Puedes seguir usando el reproductor';
+  $('accountStatus').textContent = user ? `Sesión: ${displayUsername(user)}` : 'Sin sesión · Puedes seguir usando el reproductor';
   $('authForm').hidden = !!user; $('logout').hidden = !user; $('roomControls').hidden = !user;
 }
 async function leave() {
@@ -68,24 +69,35 @@ export async function initRooms(adapter) {
     const {data,error}=await client.auth.getSession();check(error);user=data.session?.user;authUI();
     client.auth.onAuthStateChange((_event,session)=>{const previous=user?.id;user=session?.user;authUI();if(previous&&previous!==user?.id)void leave();});
     $('authForm').addEventListener('submit',run(async event=>{
-      const email=$('email').value.trim(),password=$('password').value;
-      if(event.submitter?.value==='signup') {
-        const {data,error}=await client.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});check(error);
-        say(data.session?'Cuenta creada. Ya puedes crear una sala.':'Revisa tu correo y confirma la cuenta antes de iniciar sesión.');
-      }else {const {error}=await client.auth.signInWithPassword({email,password});check(error);say('Sesión iniciada.');}
+      const name=$('email').value.trim(),password=$('password').value;
+      const buttons=[...$('authForm').querySelectorAll('button')];buttons.forEach(button=>button.disabled=true);
+      try {
+        if(event.submitter?.value==='signup') {
+          const username=normalizeUsername(name);
+          const response=await fetch('https://suvcdkqqwrodwxgmcjej.supabase.co/functions/v1/animejj-register',{method:'POST',headers:{'Content-Type':'application/json','apikey':'sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50'},body:JSON.stringify({username,password})});
+          const result=await response.json();if(!response.ok)throw Error(result.error||'No pudimos crear la cuenta.');
+          const {error}=await client.auth.signInWithPassword({email:usernameEmail(username),password});check(error);
+          say('¡Cuenta creada! Ya puedes crear una sala.');
+        }else {
+          const email=name.includes('@')?name.toLowerCase():usernameEmail(name);
+          const {error}=await client.auth.signInWithPassword({email,password});
+          if(error)throw Error('No pudimos iniciar sesión. Revisa tu usuario y contraseña.');
+          say('Sesión iniciada.');
+        }
+      }finally{buttons.forEach(button=>button.disabled=false);}
       $('password').value='';
     }));
     $('logout').addEventListener('click',run(async()=>{await leave();const {error}=await client.auth.signOut();check(error);say('Sesión cerrada.');}));
     $('createRoom').addEventListener('click',run(async()=>{
-      const media_url=safeVideoUrl(player.source());const guest_email=$('guestEmail').value.trim().toLowerCase();
-      if(!guest_email||!$('guestEmail').checkValidity())throw Error('Escribe el correo de la cuenta que vas a invitar.');
+      const media_url=safeVideoUrl(player.source());const guest_email=usernameEmail($('guestEmail').value);
+      if(!guest_email||!$('guestEmail').checkValidity())throw Error('Escribe el usuario de la cuenta que vas a invitar.');
       if(guest_email===user.email.toLowerCase())throw Error('Invita a una cuenta diferente a la tuya.');
       const {data,error}=await client.from('animejj_rooms').insert({owner_id:user.id,guest_email,media_url,position:0,playing:false}).select().single();check(error);player.video.pause();await useRoom(data);say('Sala creada. Copia la invitación y envíasela a tu acompañante.');
     }));
     $('joinRoom').addEventListener('click',run(async()=>{
       const id=$('roomId').value.trim();if(!/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(id))throw Error('Pega el identificador de sala de la invitación.');
       const {data,error}=await client.from('animejj_rooms').select('*').eq('id',id).maybeSingle();check(error);
-      if(!data)throw Error('Sala no encontrada o tu correo no está invitado.');await useRoom(data);say('Sala conectada. Cada persona carga sus subtítulos en su dispositivo.');
+      if(!data)throw Error('Sala no encontrada o tu usuario no está invitado.');await useRoom(data);say('Sala conectada. Cada persona carga sus subtítulos en su dispositivo.');
     }));
     $('leaveRoom').addEventListener('click',run(async()=>{await leave();say('Saliste de la sala.');}));
     $('copyRoom').addEventListener('click',run(async()=>{const url=new URL(location.href);url.search='';url.searchParams.set('room',room.id);try{await navigator.clipboard.writeText(url.href);say('Invitación copiada.');}catch{$('invitation').value=url.href;$('invitation').hidden=false;$('invitation').select();say('Copia el enlace del campo de invitación.');}}));
