@@ -1,8 +1,11 @@
+import {initRooms, canLoadSource} from './rooms.js';
 import {parseSubtitles, activeText} from './subtitles.js';
 const $ = id => document.getElementById(id), video = $('video');
-const tracks = {es:[], en:[]}; let objectURL;
+const tracks = {es:[], en:[]}; let objectURL; let currentSource="";
 function message(text) {$('message').textContent=text;}
 function load(source, title) {
+  if (!canLoadSource(source)) {message("Sal de la sala para cambiar un archivo local. Solo el anfitrión puede cambiar el enlace compartido.");return;}
+  currentSource=source instanceof File?"":source;
   video.pause();
   if (objectURL) {URL.revokeObjectURL(objectURL);objectURL=null;}
   if (source instanceof File) {objectURL=URL.createObjectURL(source);source=objectURL;}
@@ -20,3 +23,5 @@ for(const [event,text] of Object.entries({loadedmetadata:'Listo para reproducir'
 video.addEventListener('error',()=>{$('status').textContent='No se pudo reproducir';message('El formato puede no ser compatible o el servidor puede bloquear el enlace. Prueba un MP4 local.');});
 $('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else if($('stage').requestFullscreen)await $('stage').requestFullscreen();else message('Tu navegador no permite esta pantalla completa. Puedes girar el celular para ampliar el reproductor.');}catch{message('No se pudo activar la pantalla completa en este navegador.');}});
 window.addEventListener('beforeunload',()=>{if(objectURL)URL.revokeObjectURL(objectURL);});
+
+void initRooms({video, load, source:()=>currentSource});
