@@ -24,3 +24,5 @@ async function query(action,variables,signal){
 }
 export async function searchAnime(search='',page=1,signal){const term=search.trim().slice(0,100);const data=await query('search',{search:term,page},signal);return {items:data.Page.media.map(normalizeMedia),hasNext:!!data.Page.pageInfo.hasNextPage};}
 export async function animeDetails(id,signal){if(!Number.isInteger(id)||id<=0)throw Error('Identificador de anime inválido.');const data=await query('details',{id},signal);return normalizeMedia(data.Media);}
+
+export function posterUrl(value){try{const url=new URL(value);if(url.protocol!=='https:'||url.hostname!=='s4.anilist.co'||!/^\/file\/anilistcdn\/media\/anime\/cover\/(?:small|medium|large)\/[a-zA-Z0-9_.-]+\.(?:jpg|jpeg|png|webp)$/.test(url.pathname))return null;const target=new URL(API);target.searchParams.set('cover',url.pathname);target.searchParams.set('key','sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50');return target.href;}catch{return null;}}

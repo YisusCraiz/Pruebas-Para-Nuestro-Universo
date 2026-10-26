@@ -31,3 +31,5 @@ Documentación:
 
 ## Resolución de conexión del catálogo
 La función animejj-catalog se desplegó en Supabase con dos operaciones fijas (search/details), destino único AniList, validación de parámetros, caché en memoria y límite preventivo de peticiones. No permite enviar consultas GraphQL arbitrarias ni URLs. Solo consume datos públicos y no lee tablas, usuarios ni secretos administrativos. La búsqueda real de Kimetsu respondió HTTP 200 a través de ella. La página usa esa función para resolver el fallo observado en la llamada directa desde el navegador. Esto habilita metadatos, no fuentes de video.
+
+Se verificó la búsqueda y ficha de Kimetsu desde la página publicada. La función de catálogo también sirve las portadas de AniList mediante una ruta GET que valida clave publicable y restringe host/ruta/formato/tamaño; no acepta destinos arbitrarios ni redirecciones. Esto evita el fallo de imágenes observado en el navegador de prueba. Los enlaces de streaming continúan siendo externos hasta integrar una fuente de video.

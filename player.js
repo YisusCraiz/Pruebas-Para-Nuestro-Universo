@@ -1,4 +1,4 @@
-import {youtubeId,isHlsUrl} from './sources.js?v=20261026-discover2';
+import {youtubeId,isHlsUrl} from './sources.js?v=20261026-discover3';
 let youtubeAPI;
 async function hlsClass(){if(window.Hls)return window.Hls;return (await import('https://cdn.jsdelivr.net/npm/hls.js@1.6.13/dist/hls.mjs')).default;}
 function getAPI(){
