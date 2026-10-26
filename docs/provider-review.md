@@ -45,3 +45,10 @@ El conector se mantiene experimental y aislado en este repositorio de pruebas. N
 
 ## Diagnóstico de subtítulos y mejora del cliente
 La respuesta 403 fue identificada mediante registros: página “Attention Required! | Cloudflare”. Se detuvieron los intentos de recuperación de esa ruta. El endpoint devuelve SUBTITLE_BLOCKED con estado 422 y un mensaje utilizable, sin exponer el HTML del bloqueo. El cliente mantiene estados independientes por idioma y cancela resultados antiguos al cambiar capítulo o cargar un archivo. Las pruebas cubren esas carreras, errores parciales y preferencias con almacenamiento no disponible.
+
+## Alternativa independiente de subtítulos
+Se revisaron Wyzie (documentación actual requiere clave, no se integró ni se creó una cuenta) y la API pública Gestdown/AddictedProxy. Se implementó un cliente propio, sin copiar el servidor GPL ni desplegar su código. Referencias: https://github.com/Belphemur/AddictedProxy/blob/dev/docs/api-surface.md y https://docs.wyzie.io/subs/usage/direct .
+
+Nueva función animejj-subtitles. AniZip entrega la correspondencia AniList → TVDB y la numeración de cada episodio (https://api.ani.zip/mappings?anilist_id=16498). Se exige igualdad de AniList, TVDB del episodio, temporada/episodio positivos y coincidencia única del show; no se asume temporada 1 ni se buscan títulos a ciegas. Gestdown devuelve candidatos de ES/EN y la descarga se valida contra ese resultado. No se aceptan destinos enviados por el navegador.
+
+Verificado en vivo desde Supabase para Attack on Titan, capítulo 1: búsqueda HTTP 200; español HTTP 200, 257 entradas; inglés HTTP 200, 302 entradas. Pruebas cubren temporadas distintas, pistas de idioma equivocado, URLs externas y codificaciones de acentos. No equivale a validar todo el catálogo ni a sincronizar automáticamente cada edición del video. El CDN del video permanece bloqueado para sus pistas originales y ya no se consulta automáticamente para subtítulos.

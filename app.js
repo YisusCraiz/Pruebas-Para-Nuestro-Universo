@@ -1,19 +1,21 @@
-import {parseStreamReference,streamReference,sourceSubtitleUrl} from './stream-api.js?v=20261026-captions1';
-import {initBrowse} from './browse.js?v=20261026-captions1';
-import {initRooms,canLoadSource} from './rooms.js?v=20261026-captions1';
-import {activeText} from './subtitles.js?v=20261026-captions1';
-import {CaptionTracks,captionPreferences,saveCaptionPreferences} from './caption-tracks.js?v=20261026-captions1';
-import {MediaPlayer} from './player.js?v=20261026-captions1';
-import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-captions1';
+import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-alternatives1';
+import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-alternatives1';
+import {initBrowse} from './browse.js?v=20261026-alternatives1';
+import {initRooms,canLoadSource} from './rooms.js?v=20261026-alternatives1';
+import {activeText} from './subtitles.js?v=20261026-alternatives1';
+import {CaptionTracks,captionPreferences,saveCaptionPreferences} from './caption-tracks.js?v=20261026-alternatives1';
+import {MediaPlayer} from './player.js?v=20261026-alternatives1';
+import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-alternatives1';
 const $=id=>document.getElementById(id),video=new MediaPlayer($('video'),$('youtubeHost'));
+let captionLookup=null;
 const captions=new CaptionTracks(()=>{render();captionStatus();});
 let preferenceStore;try{preferenceStore=window.localStorage;}catch{}
 const preferences=captionPreferences(preferenceStore);$('mode').value=preferences.mode;$('captionSize').value=String(preferences.size);
-function applyPreferences(){const size=Number($('captionSize').value);$('captions').style.fontSize=`clamp(${15*size/100}px,${2*size/100}vw,${25*size/100}px)`;saveCaptionPreferences(preferenceStore,{mode:$('mode').value,size});render();}
+function applyPreferences(){const size=Number($('captionSize').value);$('captions').style.fontSize=`clamp(${15*size/100}px,${2*size/100}vw,${25*size/100}px)`;saveCaptionPreferences(preferenceStore,{mode:$('mode').value,size});render();if(video.providerInfo&&captionLookup?.data)for(const lang of ['es','en'])if(($('mode').value==='both'||$('mode').value===lang)&&captions.get(lang).status==='empty'&&$(lang+'Remote').value)void remoteSubtitle(lang);}
 applyPreferences();
 function message(text){$('message').textContent=text;}
 function load(source,title){if(!canLoadSource(source)){message('Solo el anfitrión puede elegir el episodio. Los archivos locales se usan en solitario.');return false;}
- captions.reset();$('offset').value='0';for(const lang of ['es','en'])$(lang+'File').value=''; $('remoteSubtitles').hidden=true;$('chapterNavigation').hidden=true;
+ captionLookup?.controller.abort();captionLookup=null;captions.reset();$('offset').value='0';for(const lang of ['es','en'])$(lang+'File').value=''; $('remoteSubtitles').hidden=true;$('chapterNavigation').hidden=true;
  const id=typeof source==='string'?youtubeId(source):null,item=catalog.find(item=>item.id===id);
  $('title').textContent=item?`${item.series} · ${item.episode}`:title;$('status').textContent=source?'Cargando…':'Sin episodio';message('');
  $('youtubeNote').hidden=!id;$('localSubtitles').hidden=!!id;
@@ -24,8 +26,8 @@ $('urlForm').addEventListener('submit',e=>{e.preventDefault();try{const url=new 
 for(const lang of ['es','en'])$(lang+'File').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;if(file.size>5*1024*1024){message('El archivo debe pesar menos de 5 MB.');e.target.value='';return;}
  const ok=await captions.load(lang,()=>file.text(),{kind:'file',label:file.name});if(ok){$(lang+'Remote').value='';message(`${lang.toUpperCase()}: archivo cargado.`);}e.target.value='';});
 function render(){const mode=$('mode').value,offset=Number($('offset').value)||0;for(const lang of ['es','en'])$(lang+'Line').textContent=mode==='both'||mode===lang?activeText(captions.get(lang).cues,video.currentTime-offset):'';}
-function captionStatus(){let failed=false;for(const lang of ['es','en']){const entry=captions.get(lang),name=lang==='es'?'Español':'English';const text={empty:'Sin pista',unavailable:'Sin pista ofrecida',loading:'Cargando…',error:entry.error||'No se pudo cargar'}[entry.status]||`${entry.cues.length} líneas · ${entry.kind==='file'?'archivo propio':'fuente'}`;$(lang+'CaptionStatus').textContent=`${name}: ${text}`;if(entry.status==='error'&&entry.kind==='remote')failed=true;}
- $('retryCaptions').hidden=!failed;
+function captionStatus(){let failed=false;for(const lang of ['es','en']){const entry=captions.get(lang),name=lang==='es'?'Español':'English';const text={empty:'Sin pista',unavailable:'Sin pista ofrecida',loading:'Cargando…',error:entry.error||'No se pudo cargar'}[entry.status]||`${entry.cues.length} línea${entry.cues.length===1?'':'s'} · ${entry.kind==='file'?'archivo propio':entry.label||'fuente alternativa'}`;$(lang+'CaptionStatus').textContent=`${name}: ${text}`;if(entry.status==='error'&&entry.kind==='remote')failed=true;}
+ $('retryCaptions').hidden=!failed&&!captionLookup?.failed;
 }
 video.addEventListener('timeupdate',render);video.addEventListener('seeked',render);$('mode').addEventListener('change',applyPreferences);$('captionSize').addEventListener('change',applyPreferences);$('offset').addEventListener('input',render);
 for(const [id,delta] of [['captionEarlier',-.5],['captionLater',.5]])$(id).addEventListener('click',()=>{$('offset').value=String(Math.max(-120,Math.min(120,(Number($('offset').value)||0)+delta)));render();});$('captionReset').addEventListener('click',()=>{$('offset').value='0';render();});
@@ -35,11 +37,18 @@ video.addEventListener('error',()=>{$('status').textContent='No se pudo reproduc
 
 video.addEventListener('providerloading',()=>{$('status').textContent='Preparando capítulo…';message('Consultando la fuente del episodio.');});
 async function remoteSubtitle(lang){const ref=parseStreamReference(video.source),select=$(lang+'Remote');if(!video.providerInfo||!ref||select.value===''){captions.clear(lang);return;}
- const index=Number(select.value);await captions.load(lang,async signal=>{const controller=new AbortController(),abort=()=>controller.abort();signal.addEventListener('abort',abort,{once:true});const timer=setTimeout(abort,20000);try{const response=await fetch(sourceSubtitleUrl(ref,index),{signal:controller.signal});if(!response.ok){let error;try{error=(await response.json()).error;}catch{}throw Error(error||'La fuente no permite cargar esta pista. Usa un archivo propio.');}return await response.text();}catch(error){if(controller.signal.aborted&&!signal.aborted)throw Error('La pista tardó demasiado. Puedes reintentar.');throw error;}finally{clearTimeout(timer);signal.removeEventListener('abort',abort);}},{kind:'remote',label:select.selectedOptions[0]?.textContent||''});
+ const trackId=select.value;await captions.load(lang,async signal=>{const controller=new AbortController(),abort=()=>controller.abort();signal.addEventListener('abort',abort,{once:true});const timer=setTimeout(abort,45000);try{const response=await fetch(alternativeSubtitleUrl(ref,lang,trackId),{signal:controller.signal});if(!response.ok){let error;try{error=(await response.json()).error;}catch{}throw Error(error||'La fuente no permite cargar esta pista. Usa un archivo propio.');}return await response.text();}catch(error){if(controller.signal.aborted&&!signal.aborted)throw Error('La pista tardó demasiado. Puedes reintentar.');throw error;}finally{clearTimeout(timer);signal.removeEventListener('abort',abort);}},{kind:'remote',label:select.selectedOptions[0]?.textContent||''});
 }
-$('retryCaptions').addEventListener('click',()=>{for(const lang of ['es','en']){const entry=captions.get(lang);if(entry.status==='error'&&entry.kind==='remote')void remoteSubtitle(lang);}});
+async function prepareCaptions(info,ref){captionLookup?.controller.abort();const lookup={controller:new AbortController(),failed:false,data:null};captionLookup=lookup;$('remoteSubtitles').hidden=false;$('sourceSubtitleStatus').textContent='Buscando subtítulos alternativos para este capítulo…';
+ for(const lang of ['es','en']){const select=$(lang+'Remote');select.replaceChildren(new Option('Sin pista',''));select.disabled=true;if(captions.get(lang).kind!=='file')captions.clear(lang,'loading');}
+ try{const data=await searchAlternativeSubtitles(ref,lookup.controller.signal);if(lookup!==captionLookup||lookup.controller.signal.aborted)return;lookup.data=data;
+ $('sourceSubtitleStatus').textContent=`Fuente alternativa: Gestdown · ${data.mapping.title} · T${data.mapping.season} E${data.mapping.episode}. Si el texto no coincide, elige otra versión o ajusta el tiempo.${data.warnings?.length?' '+data.warnings.join(' · '):''}`;
+ for(const lang of ['es','en']){const list=data.tracks.filter(t=>t.language===lang),select=$(lang+'Remote');select.replaceChildren(new Option('Sin pista',''),...list.map(t=>new Option(t.label,t.id)));select.disabled=!list.length;if(captions.get(lang).kind==='file'){select.value='';continue;}select.value=list[0]?.id||'';if(!list.length)captions.clear(lang,'unavailable');else if($('mode').value==='both'||$('mode').value===lang)void remoteSubtitle(lang);else captions.clear(lang);}
+ }catch(error){if(lookup!==captionLookup||lookup.controller.signal.aborted)return;lookup.failed=true;$('sourceSubtitleStatus').textContent=error.message+' Puedes cargar un archivo propio.';for(const lang of ['es','en'])if(captions.get(lang).kind!=='file')captions.clear(lang,'unavailable');}finally{if(lookup===captionLookup)captionStatus();}
+}
+$('retryCaptions').addEventListener('click',()=>{if(captionLookup?.failed){const ref=parseStreamReference(video.source);if(ref&&video.providerInfo)void prepareCaptions(video.providerInfo,ref);return;}for(const lang of ['es','en']){const entry=captions.get(lang);if(entry.status==='error'&&entry.kind==='remote')void remoteSubtitle(lang);}});
 video.addEventListener('providerready',()=>{const info=video.providerInfo,ref=parseStreamReference(video.source);if(!info||!ref)return;$('title').textContent=`${info.title} · Capítulo ${info.episode}`;message('');$('chapterNavigation').hidden=false;$('chapterLabel').textContent=`Capítulo ${info.episode}${info.totalEpisodes?' de '+info.totalEpisodes:''}`;const canChoose=canLoadSource(video.source);$('previousChapter').disabled=!canChoose||info.episode<=1;$('nextChapter').disabled=!canChoose||!!info.totalEpisodes&&info.episode>=info.totalEpisodes;
- const available=info.streams[0].subtitles||[];$('remoteSubtitles').hidden=false;for(const lang of ['es','en']){const list=available.filter(t=>String(t.language).toLowerCase().startsWith(lang)||lang==='es'&&/^(spanish|español)/i.test(t.label)||lang==='en'&&/^english/i.test(t.label)).sort((a,b)=>Number(/forced|signs|songs/i.test(a.label))-Number(/forced|signs|songs/i.test(b.label)));const select=$(lang+'Remote');select.replaceChildren(new Option('Sin pista',''),...list.map(t=>new Option(t.label,String(t.index))));select.value=list.length?String(list[0].index):'';select.disabled=!list.length;if(list.length)void remoteSubtitle(lang);else captions.clear(lang,'unavailable');}$('sourceSubtitleStatus').textContent='Las pistas dependen de la fuente. Si fallan, puedes cargar un archivo propio debajo.';
+ void prepareCaptions(info,ref);
 });
 for(const lang of ['es','en'])$(lang+'Remote').addEventListener('change',()=>void remoteSubtitle(lang));
 for(const [id,offset] of [['previousChapter',-1],['nextChapter',1]])$(id).addEventListener('click',()=>{const ref=parseStreamReference(video.source),info=video.providerInfo;if(ref&&info)load(streamReference(ref.animeId,ref.episode+offset),`${info.title} · Capítulo ${ref.episode+offset}`);});
