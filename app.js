@@ -1,4 +1,4 @@
-import {initRooms, canLoadSource} from './rooms.js';
+import {initRooms, canLoadSource} from './rooms.js?v=20261026-auth2';
 import {parseSubtitles, activeText} from './subtitles.js';
 const $ = id => document.getElementById(id), video = $('video');
 const tracks = {es:[], en:[]}; let objectURL; let currentSource="";

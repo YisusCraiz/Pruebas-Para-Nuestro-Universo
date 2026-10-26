@@ -1,4 +1,4 @@
-import {normalizeUsername,usernameEmail,displayUsername} from './username.js';
+import {normalizeUsername,usernameEmail,displayUsername} from './username.js?v=20261026-auth2';
 import {playbackTarget, safeVideoUrl} from './sync.js';
 const $ = id => document.getElementById(id);
 const say = text => $('roomMessage').textContent = text;
@@ -68,15 +68,17 @@ export async function initRooms(adapter) {
     client=createClient('https://suvcdkqqwrodwxgmcjej.supabase.co','sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50');
     const {data,error}=await client.auth.getSession();check(error);user=data.session?.user;authUI();
     client.auth.onAuthStateChange((_event,session)=>{const previous=user?.id;user=session?.user;authUI();if(previous&&previous!==user?.id)void leave();});
+    for(const button of $('authForm').querySelectorAll('button[value]')) button.addEventListener('click',()=>{$('authForm').dataset.action=button.value;});
     $('authForm').addEventListener('submit',run(async event=>{
+      const action=event.submitter?.value || $('authForm').dataset.action || 'login';
       const name=$('email').value.trim(),password=$('password').value;
       const buttons=[...$('authForm').querySelectorAll('button')];buttons.forEach(button=>button.disabled=true);
       try {
-        if(event.submitter?.value==='signup') {
+        if(action==='signup') {
           const username=normalizeUsername(name);
           const response=await fetch('https://suvcdkqqwrodwxgmcjej.supabase.co/functions/v1/animejj-register',{method:'POST',headers:{'Content-Type':'application/json','apikey':'sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50'},body:JSON.stringify({username,password})});
           const result=await response.json();if(!response.ok)throw Error(result.error||'No pudimos crear la cuenta.');
-          const {error}=await client.auth.signInWithPassword({email:usernameEmail(username),password});check(error);
+          const {error}=await client.auth.signInWithPassword({email:usernameEmail(username),password});if(error)throw Error('La cuenta se creó, pero no pudimos iniciar sesión. Pulsa Entrar con el mismo usuario y contraseña.');
           say('¡Cuenta creada! Ya puedes crear una sala.');
         }else {
           const email=name.includes('@')?name.toLowerCase():usernameEmail(name);
