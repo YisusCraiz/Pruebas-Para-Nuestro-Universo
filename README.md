@@ -63,3 +63,10 @@ Si hay una pista ES o EN lista y falta la otra, el botón Traducir idioma faltan
 Limitación importante: según https://developer.chrome.com/docs/ai/translator-api esta API funciona en Chrome de escritorio compatible, no en móviles. Sin soporte el botón queda desactivado y se muestra el motivo. La lógica se verifica con un traductor simulado; no equivale a probar calidad ni descarga del modelo en cada equipo. Para Android/iPhone sigue pendiente conectar un servicio de traducción de servidor; no se ha configurado ni contratado uno.
 
 Verificación de navegador: filtro Donghua y búsqueda Doupo Cangqiong correctos. Se cargó una pista inglesa breve; el navegador expuso Translator pero rechazó crear el traductor ES/EN. La interfaz conserva la pista original y muestra el fallo. Por tanto, no se declara traducción real verificada en este entorno; queda experimental y pendiente de un motor disponible.
+
+## Motor de traducción portátil
+Se sustituye la dependencia de Chrome Translator por un Web Worker con Transformers.js 2.17.2 y modelos Marian OPUS-MT cuantizados ES↔EN, descargados de Hugging Face con revisiones fijas. No necesita Worker AI nativo de Chrome, cuenta ni clave; requiere WebAssembly y module workers. La primera carga es de aproximadamente 120 MB por dirección, más el runtime. La caché del navegador puede evitar repetir descargas, pero puede ser eliminada por el sistema. La velocidad y compatibilidad dependen del equipo; aún se debe comprobar en el teléfono real del usuario.
+
+La traducción se ejecuta en el dispositivo. El texto no se manda a un servicio remoto de traducción. Cancelar o cambiar capítulo termina el worker y evita publicar resultados incompletos; la pista original se conserva. El botón informa de la descarga y recomienda Wi-Fi. Se mantienen etiquetas de traducción automática y tiempos originales.
+
+Referencias: https://huggingface.co/docs/transformers.js/v2.17.2/en/custom_usage , https://huggingface.co/Xenova/opus-mt-en-es , https://huggingface.co/Xenova/opus-mt-es-en . No se modificó Supabase ni se contrató un servicio de traducción.

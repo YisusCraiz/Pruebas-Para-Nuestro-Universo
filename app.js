@@ -1,12 +1,12 @@
-import {translationSupported,translateCaptionCues} from './translate-captions.js?v=20261026-donghua2';
-import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-donghua2';
-import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-donghua2';
-import {initBrowse} from './browse.js?v=20261026-donghua2';
-import {initRooms,canLoadSource} from './rooms.js?v=20261026-donghua2';
-import {activeText} from './subtitles.js?v=20261026-donghua2';
-import {CaptionTracks,captionPreferences,saveCaptionPreferences} from './caption-tracks.js?v=20261026-donghua2';
-import {MediaPlayer} from './player.js?v=20261026-donghua2';
-import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-donghua2';
+import {translationSupported,translateCaptionCues} from './translate-captions.js?v=20261026-portable1';
+import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-portable1';
+import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-portable1';
+import {initBrowse} from './browse.js?v=20261026-portable1';
+import {initRooms,canLoadSource} from './rooms.js?v=20261026-portable1';
+import {activeText} from './subtitles.js?v=20261026-portable1';
+import {CaptionTracks,captionPreferences,saveCaptionPreferences} from './caption-tracks.js?v=20261026-portable1';
+import {MediaPlayer} from './player.js?v=20261026-portable1';
+import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-portable1';
 const $=id=>document.getElementById(id),video=new MediaPlayer($('video'),$('youtubeHost'));
 let captionLookup=null,translationJob=null,translatedFrom=null;
 const captions=new CaptionTracks(()=>{render();captionStatus();});
@@ -17,7 +17,7 @@ applyPreferences();
 for(const button of $('personalCaptionModes').querySelectorAll('button'))button.addEventListener('click',()=>{$('mode').value=button.dataset.captionMode;applyPreferences();});
 function message(text){$('message').textContent=text;}
 function load(source,title){if(!canLoadSource(source)){message('Solo el anfitrión puede elegir el episodio. Los archivos locales se usan en solitario.');return false;}
- captionLookup?.controller.abort();captionLookup=null;translationJob=null;translatedFrom=null;$('cancelTranslation').hidden=true;$('translationStatus').textContent='Traducción local experimental: requiere una pista ES/EN y un navegador de computadora compatible. No disponible en móviles.';captions.reset();$('offset').value='0';for(const lang of ['es','en'])$(lang+'File').value=''; $('remoteSubtitles').hidden=true;$('chapterNavigation').hidden=true;
+ captionLookup?.controller.abort();captionLookup=null;translationJob=null;translatedFrom=null;$('cancelTranslation').hidden=true;$('translationStatus').textContent='Traducción en tu dispositivo: requiere una pista ES/EN. La primera descarga es de aproximadamente 120 MB por dirección de idioma. Usa Wi-Fi.';captions.reset();$('offset').value='0';for(const lang of ['es','en'])$(lang+'File').value=''; $('remoteSubtitles').hidden=true;$('chapterNavigation').hidden=true;
  const id=typeof source==='string'?youtubeId(source):null,item=catalog.find(item=>item.id===id);
  $('title').textContent=item?`${item.series} · ${item.episode}`:title;$('status').textContent=source?'Cargando…':'Sin episodio';message('');
  $('youtubeNote').hidden=!id;$('localSubtitles').hidden=!!id;
@@ -49,7 +49,7 @@ async function prepareCaptions(info,ref){captionLookup?.controller.abort();const
  }catch(error){if(lookup!==captionLookup||lookup.controller.signal.aborted)return;lookup.failed=true;$('sourceSubtitleStatus').textContent=error.message+' Puedes cargar un archivo propio.';for(const lang of ['es','en'])if(captions.get(lang).kind!=='file')captions.clear(lang,'unavailable');}finally{if(lookup===captionLookup)captionStatus();}
 }
 
-$('translateMissing').addEventListener('click',async()=>{const target=['es','en'].find(lang=>['empty','unavailable','error'].includes(captions.get(lang).status)&&captions.get(lang==='es'?'en':'es').status==='ready');if(!target||translationJob)return;const source=target==='es'?'en':'es',entry=captions.get(source),job={source,target};translationJob=job;translatedFrom={source,target,entry};$('cancelTranslation').hidden=false;$('translationStatus').textContent='Preparando traducción local. El navegador puede descargar un paquete de idioma…';captionStatus();try{const ok=await captions.load(target,signal=>translateCaptionCues(entry.cues,{source,target,signal,onProgress:p=>{if(translationJob===job)$('translationStatus').textContent=p.stage==='download'?`Descargando idioma: ${Math.round(p.progress*100)}%`:`Traducción automática: ${p.done}/${p.total} líneas`;}}),{kind:'machine',label:'Traducción automática'});if(translationJob===job)$('translationStatus').textContent=ok?'Traducción automática lista. Puede contener errores en nombres o expresiones.':'Traducción cancelada o no disponible. La pista original se conserva.';}finally{if(translationJob===job){translationJob=null;$('cancelTranslation').hidden=true;captionStatus();}}});
+$('translateMissing').addEventListener('click',async()=>{const target=['es','en'].find(lang=>['empty','unavailable','error'].includes(captions.get(lang).status)&&captions.get(lang==='es'?'en':'es').status==='ready');if(!target||translationJob)return;const source=target==='es'?'en':'es',entry=captions.get(source),job={source,target};translationJob=job;translatedFrom={source,target,entry};$('cancelTranslation').hidden=false;$('translationStatus').textContent='Preparando el motor de traducción. Primera descarga: aproximadamente 120 MB; después puede reutilizarse desde la caché.';captionStatus();try{const ok=await captions.load(target,signal=>translateCaptionCues(entry.cues,{source,target,signal,onProgress:p=>{if(translationJob===job)$('translationStatus').textContent=p.stage==='download'?`Descargando motor: ${Math.round(p.progress*100)}%`:`Traducción automática: ${p.done}/${p.total} líneas`;}}),{kind:'machine',label:'Traducción automática'});if(translationJob===job)$('translationStatus').textContent=ok?'Traducción automática lista. Puede contener errores en nombres o expresiones.':'Traducción cancelada o no disponible. La pista original se conserva.';}finally{if(translationJob===job){translationJob=null;$('cancelTranslation').hidden=true;captionStatus();}}});
 $('cancelTranslation').addEventListener('click',()=>{if(translationJob)captions.clear(translationJob.target);});
 
 $('retryCaptions').addEventListener('click',()=>{if(captionLookup?.failed){const ref=parseStreamReference(video.source);if(ref&&video.providerInfo)void prepareCaptions(video.providerInfo,ref);return;}for(const lang of ['es','en']){const entry=captions.get(lang);if(entry.status==='error'&&entry.kind==='remote')void remoteSubtitle(lang);}});
