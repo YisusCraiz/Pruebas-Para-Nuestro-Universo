@@ -1,18 +1,19 @@
-import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-alternatives1';
-import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-alternatives1';
-import {initBrowse} from './browse.js?v=20261026-alternatives1';
-import {initRooms,canLoadSource} from './rooms.js?v=20261026-alternatives1';
-import {activeText} from './subtitles.js?v=20261026-alternatives1';
-import {CaptionTracks,captionPreferences,saveCaptionPreferences} from './caption-tracks.js?v=20261026-alternatives1';
-import {MediaPlayer} from './player.js?v=20261026-alternatives1';
-import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-alternatives1';
+import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-personal1';
+import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-personal1';
+import {initBrowse} from './browse.js?v=20261026-personal1';
+import {initRooms,canLoadSource} from './rooms.js?v=20261026-personal1';
+import {activeText} from './subtitles.js?v=20261026-personal1';
+import {CaptionTracks,captionPreferences,saveCaptionPreferences} from './caption-tracks.js?v=20261026-personal1';
+import {MediaPlayer} from './player.js?v=20261026-personal1';
+import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-personal1';
 const $=id=>document.getElementById(id),video=new MediaPlayer($('video'),$('youtubeHost'));
 let captionLookup=null;
 const captions=new CaptionTracks(()=>{render();captionStatus();});
 let preferenceStore;try{preferenceStore=window.localStorage;}catch{}
 const preferences=captionPreferences(preferenceStore);$('mode').value=preferences.mode;$('captionSize').value=String(preferences.size);
-function applyPreferences(){const size=Number($('captionSize').value);$('captions').style.fontSize=`clamp(${15*size/100}px,${2*size/100}vw,${25*size/100}px)`;saveCaptionPreferences(preferenceStore,{mode:$('mode').value,size});render();if(video.providerInfo&&captionLookup?.data)for(const lang of ['es','en'])if(($('mode').value==='both'||$('mode').value===lang)&&captions.get(lang).status==='empty'&&$(lang+'Remote').value)void remoteSubtitle(lang);}
+function applyPreferences(){for(const button of $('personalCaptionModes').querySelectorAll('button'))button.setAttribute('aria-pressed',String(button.dataset.captionMode===$('mode').value));const size=Number($('captionSize').value);$('captions').style.fontSize=`clamp(${15*size/100}px,${2*size/100}vw,${25*size/100}px)`;saveCaptionPreferences(preferenceStore,{mode:$('mode').value,size});render();if(video.providerInfo&&captionLookup?.data)for(const lang of ['es','en'])if(($('mode').value==='both'||$('mode').value===lang)&&captions.get(lang).status==='empty'&&$(lang+'Remote').value)void remoteSubtitle(lang);}
 applyPreferences();
+for(const button of $('personalCaptionModes').querySelectorAll('button'))button.addEventListener('click',()=>{$('mode').value=button.dataset.captionMode;applyPreferences();});
 function message(text){$('message').textContent=text;}
 function load(source,title){if(!canLoadSource(source)){message('Solo el anfitrión puede elegir el episodio. Los archivos locales se usan en solitario.');return false;}
  captionLookup?.controller.abort();captionLookup=null;captions.reset();$('offset').value='0';for(const lang of ['es','en'])$(lang+'File').value=''; $('remoteSubtitles').hidden=true;$('chapterNavigation').hidden=true;

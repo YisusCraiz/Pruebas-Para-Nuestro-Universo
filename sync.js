@@ -7,3 +7,6 @@ export function safeVideoUrl(value) {
   if (url.protocol !== 'https:') throw Error('La sala necesita un enlace directo HTTPS.');
   return url.href;
 }
+
+// Only playback is shared. Captions and all viewing preferences stay local.
+export function roomPlaybackUpdate(source,video){return {media_url:safeVideoUrl(source),position:video.currentTime,playing:!video.paused&&!video.ended};}
