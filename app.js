@@ -1,13 +1,14 @@
-import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-personal1';
-import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-personal1';
-import {initBrowse} from './browse.js?v=20261026-personal1';
-import {initRooms,canLoadSource} from './rooms.js?v=20261026-personal1';
-import {activeText} from './subtitles.js?v=20261026-personal1';
-import {CaptionTracks,captionPreferences,saveCaptionPreferences} from './caption-tracks.js?v=20261026-personal1';
-import {MediaPlayer} from './player.js?v=20261026-personal1';
-import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-personal1';
+import {translationSupported,translateCaptionCues} from './translate-captions.js?v=20261026-donghua1';
+import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-donghua1';
+import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-donghua1';
+import {initBrowse} from './browse.js?v=20261026-donghua1';
+import {initRooms,canLoadSource} from './rooms.js?v=20261026-donghua1';
+import {activeText} from './subtitles.js?v=20261026-donghua1';
+import {CaptionTracks,captionPreferences,saveCaptionPreferences} from './caption-tracks.js?v=20261026-donghua1';
+import {MediaPlayer} from './player.js?v=20261026-donghua1';
+import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-donghua1';
 const $=id=>document.getElementById(id),video=new MediaPlayer($('video'),$('youtubeHost'));
-let captionLookup=null;
+let captionLookup=null,translationJob=null,translatedFrom=null;
 const captions=new CaptionTracks(()=>{render();captionStatus();});
 let preferenceStore;try{preferenceStore=window.localStorage;}catch{}
 const preferences=captionPreferences(preferenceStore);$('mode').value=preferences.mode;$('captionSize').value=String(preferences.size);
@@ -16,7 +17,7 @@ applyPreferences();
 for(const button of $('personalCaptionModes').querySelectorAll('button'))button.addEventListener('click',()=>{$('mode').value=button.dataset.captionMode;applyPreferences();});
 function message(text){$('message').textContent=text;}
 function load(source,title){if(!canLoadSource(source)){message('Solo el anfitrión puede elegir el episodio. Los archivos locales se usan en solitario.');return false;}
- captionLookup?.controller.abort();captionLookup=null;captions.reset();$('offset').value='0';for(const lang of ['es','en'])$(lang+'File').value=''; $('remoteSubtitles').hidden=true;$('chapterNavigation').hidden=true;
+ captionLookup?.controller.abort();captionLookup=null;translationJob=null;translatedFrom=null;$('cancelTranslation').hidden=true;$('translationStatus').textContent='Traducción local experimental: requiere una pista ES/EN y un navegador de computadora compatible. No disponible en móviles.';captions.reset();$('offset').value='0';for(const lang of ['es','en'])$(lang+'File').value=''; $('remoteSubtitles').hidden=true;$('chapterNavigation').hidden=true;
  const id=typeof source==='string'?youtubeId(source):null,item=catalog.find(item=>item.id===id);
  $('title').textContent=item?`${item.series} · ${item.episode}`:title;$('status').textContent=source?'Cargando…':'Sin episodio';message('');
  $('youtubeNote').hidden=!id;$('localSubtitles').hidden=!!id;
@@ -27,8 +28,8 @@ $('urlForm').addEventListener('submit',e=>{e.preventDefault();try{const url=new 
 for(const lang of ['es','en'])$(lang+'File').addEventListener('change',async e=>{const file=e.target.files[0];if(!file)return;if(file.size>5*1024*1024){message('El archivo debe pesar menos de 5 MB.');e.target.value='';return;}
  const ok=await captions.load(lang,()=>file.text(),{kind:'file',label:file.name});if(ok){$(lang+'Remote').value='';message(`${lang.toUpperCase()}: archivo cargado.`);}e.target.value='';});
 function render(){const mode=$('mode').value,offset=Number($('offset').value)||0;for(const lang of ['es','en'])$(lang+'Line').textContent=mode==='both'||mode===lang?activeText(captions.get(lang).cues,video.currentTime-offset):'';}
-function captionStatus(){let failed=false;for(const lang of ['es','en']){const entry=captions.get(lang),name=lang==='es'?'Español':'English';const text={empty:'Sin pista',unavailable:'Sin pista ofrecida',loading:'Cargando…',error:entry.error||'No se pudo cargar'}[entry.status]||`${entry.cues.length} línea${entry.cues.length===1?'':'s'} · ${entry.kind==='file'?'archivo propio':entry.label||'fuente alternativa'}`;$(lang+'CaptionStatus').textContent=`${name}: ${text}`;if(entry.status==='error'&&entry.kind==='remote')failed=true;}
- $('retryCaptions').hidden=!failed&&!captionLookup?.failed;
+function captionStatus(){if(translatedFrom&&captions.get(translatedFrom.source)!==translatedFrom.entry){const target=translatedFrom.target;translatedFrom=null;if(['machine'].includes(captions.get(target).kind))captions.clear(target);}let failed=false;for(const lang of ['es','en']){const entry=captions.get(lang),name=lang==='es'?'Español':'English';const text={empty:'Sin pista',unavailable:'Sin pista ofrecida',loading:'Cargando…',error:entry.error||'No se pudo cargar'}[entry.status]||`${entry.cues.length} línea${entry.cues.length===1?'':'s'} · ${entry.kind==='file'?'archivo propio':entry.kind==='machine'?'Traducción automática':entry.label||'fuente alternativa'}`;$(lang+'CaptionStatus').textContent=`${name}: ${text}`;if(entry.status==='error'&&entry.kind==='remote')failed=true;}
+ $('retryCaptions').hidden=!failed&&!captionLookup?.failed;const missing=['es','en'].find(lang=>['empty','unavailable','error'].includes(captions.get(lang).status)&&captions.get(lang==='es'?'en':'es').status==='ready');$('translateMissing').disabled=!missing||!translationSupported()||!!translationJob;
 }
 video.addEventListener('timeupdate',render);video.addEventListener('seeked',render);$('mode').addEventListener('change',applyPreferences);$('captionSize').addEventListener('change',applyPreferences);$('offset').addEventListener('input',render);
 for(const [id,delta] of [['captionEarlier',-.5],['captionLater',.5]])$(id).addEventListener('click',()=>{$('offset').value=String(Math.max(-120,Math.min(120,(Number($('offset').value)||0)+delta)));render();});$('captionReset').addEventListener('click',()=>{$('offset').value='0';render();});
@@ -47,6 +48,10 @@ async function prepareCaptions(info,ref){captionLookup?.controller.abort();const
  for(const lang of ['es','en']){const list=data.tracks.filter(t=>t.language===lang),select=$(lang+'Remote');select.replaceChildren(new Option('Sin pista',''),...list.map(t=>new Option(t.label,t.id)));select.disabled=!list.length;if(captions.get(lang).kind==='file'){select.value='';continue;}select.value=list[0]?.id||'';if(!list.length)captions.clear(lang,'unavailable');else if($('mode').value==='both'||$('mode').value===lang)void remoteSubtitle(lang);else captions.clear(lang);}
  }catch(error){if(lookup!==captionLookup||lookup.controller.signal.aborted)return;lookup.failed=true;$('sourceSubtitleStatus').textContent=error.message+' Puedes cargar un archivo propio.';for(const lang of ['es','en'])if(captions.get(lang).kind!=='file')captions.clear(lang,'unavailable');}finally{if(lookup===captionLookup)captionStatus();}
 }
+
+$('translateMissing').addEventListener('click',async()=>{const target=['es','en'].find(lang=>['empty','unavailable','error'].includes(captions.get(lang).status)&&captions.get(lang==='es'?'en':'es').status==='ready');if(!target||translationJob)return;const source=target==='es'?'en':'es',entry=captions.get(source),job={source,target};translationJob=job;translatedFrom={source,target,entry};$('cancelTranslation').hidden=false;$('translationStatus').textContent='Preparando traducción local. El navegador puede descargar un paquete de idioma…';captionStatus();try{const ok=await captions.load(target,signal=>translateCaptionCues(entry.cues,{source,target,signal,onProgress:p=>{if(translationJob===job)$('translationStatus').textContent=p.stage==='download'?`Descargando idioma: ${Math.round(p.progress*100)}%`:`Traducción automática: ${p.done}/${p.total} líneas`;}}),{kind:'machine',label:'Traducción automática'});if(translationJob===job)$('translationStatus').textContent=ok?'Traducción automática lista. Puede contener errores en nombres o expresiones.':'Traducción cancelada o no disponible. La pista original se conserva.';}finally{if(translationJob===job){translationJob=null;$('cancelTranslation').hidden=true;captionStatus();}}});
+$('cancelTranslation').addEventListener('click',()=>{if(translationJob)captions.clear(translationJob.target);});
+
 $('retryCaptions').addEventListener('click',()=>{if(captionLookup?.failed){const ref=parseStreamReference(video.source);if(ref&&video.providerInfo)void prepareCaptions(video.providerInfo,ref);return;}for(const lang of ['es','en']){const entry=captions.get(lang);if(entry.status==='error'&&entry.kind==='remote')void remoteSubtitle(lang);}});
 video.addEventListener('providerready',()=>{const info=video.providerInfo,ref=parseStreamReference(video.source);if(!info||!ref)return;$('title').textContent=`${info.title} · Capítulo ${info.episode}`;message('');$('chapterNavigation').hidden=false;$('chapterLabel').textContent=`Capítulo ${info.episode}${info.totalEpisodes?' de '+info.totalEpisodes:''}`;const canChoose=canLoadSource(video.source);$('previousChapter').disabled=!canChoose||info.episode<=1;$('nextChapter').disabled=!canChoose||!!info.totalEpisodes&&info.episode>=info.totalEpisodes;
  void prepareCaptions(info,ref);

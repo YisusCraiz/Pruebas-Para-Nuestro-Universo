@@ -1,0 +1,2 @@
+export const catalogCountries={all:null,anime:'JP',donghua:'CN'};
+export function catalogSearchTerm(value){const text=String(value||'').trim().slice(0,100),key=text.normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');return ({doupocangqiong:'Dou Po Cangqiong',battlethroughtheheavens:'Dou Po Cangqiong',combatcontinent:'Douluo Dalu',soulland:'Douluo Dalu'}[key])||text;}

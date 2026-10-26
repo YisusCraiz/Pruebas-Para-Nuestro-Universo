@@ -13,3 +13,5 @@
 .caption-statuses{padding:10px 12px;border-radius:10px;background:#101321;font-size:12px;color:#d6c6e8;line-height:1.6;overflow-wrap:anywhere}.caption-statuses p{margin:5px 0}.caption-timing{display:flex;gap:6px}.caption-timing button{padding:9px 6px;font-size:12px}.bar #captionSettings{margin:0;background:#30243f;color:#eadcff}.bar{align-items:center}
 
 .personal-captions{margin:0 20px 18px;padding:14px;border-radius:12px;background:#242036}.personal-captions strong{font-size:13px;color:#e2cdfc}.personal-captions small{display:block;letter-spacing:0;line-height:1.5;margin-top:10px;color:#bfb4d4}#personalCaptionModes{display:flex;flex-wrap:wrap;gap:6px}#personalCaptionModes button{flex:1;width:auto;min-width:70px;background:#151321;color:#cfc5e0;font-size:12px;padding:9px}#personalCaptionModes button[aria-pressed=true]{background:#bb95f3;color:#1c1031}
+
+.search-row label:has(#browseCategory){flex:0 0 170px}@media(max-width:650px){.search-row{flex-wrap:wrap}.search-row label:has(#browseCategory){flex:1 0 150px}}

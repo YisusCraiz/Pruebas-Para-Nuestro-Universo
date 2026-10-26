@@ -1,3 +1,4 @@
+import {catalogSearchTerm,catalogCountries} from './catalog-search.js?v=20261026-donghua1';
 const API='https://suvcdkqqwrodwxgmcjej.supabase.co/functions/v1/animejj-catalog';
 const cache=new Map();
 let cooldown=0;
@@ -5,7 +6,7 @@ export function plainText(value){return String(value||'').replace(/<br\s*\/?\s*>
 export function httpsUrl(value){try{const url=new URL(value);return url.protocol==='https:'?url.href:null;}catch{return null;}}
 export function normalizeMedia(raw){
  if(!raw||!Number.isInteger(raw.id))throw Error('La ficha recibida no es válida.');
- return {key:`anilist:${raw.id}`,provider:'anilist',id:raw.id,malId:raw.idMal||null,title:raw.title?.english||raw.title?.romaji||raw.title?.native||'Sin título',titles:Object.values(raw.title||{}).filter(Boolean),cover:httpsUrl(raw.coverImage?.large),year:raw.startDate?.year||null,episodes:raw.episodes||null,format:raw.format||'',genres:raw.genres||[],score:raw.averageScore||null,description:plainText(raw.description),pageUrl:httpsUrl(raw.siteUrl),
+ return {key:`anilist:${raw.id}`,provider:'anilist',id:raw.id,malId:raw.idMal||null,title:raw.title?.english||raw.title?.romaji||raw.title?.native||'Sin título',titles:Object.values(raw.title||{}).filter(Boolean),cover:httpsUrl(raw.coverImage?.large),year:raw.startDate?.year||null,episodes:raw.episodes||null,format:raw.format||'',country:raw.countryOfOrigin||null,genres:raw.genres||[],score:raw.averageScore||null,description:plainText(raw.description),pageUrl:httpsUrl(raw.siteUrl),
  streaming:(raw.streamingEpisodes||[]).map(e=>({title:e.title||'Episodio',url:httpsUrl(e.url),site:e.site||'Plataforma externa'})).filter(e=>e.url),
  links:(raw.externalLinks||[]).filter(e=>e.type==='STREAMING').map(e=>({site:e.site||'Plataforma',url:httpsUrl(e.url),language:e.language||null})).filter(e=>e.url),
  relations:(raw.relations?.edges||[]).filter(e=>e.node?.type==='ANIME').map(e=>({...normalizeMedia(e.node),relation:e.relationType}))};
@@ -22,7 +23,7 @@ async function query(action,variables,signal){
  }catch(error){if(signal?.aborted)throw new DOMException('Cancelado','AbortError');if(controller.signal.aborted)throw Error('El catálogo tardó demasiado. Puedes intentar de nuevo.');if(error instanceof TypeError)throw Error('No se pudo conectar con el catálogo. Los episodios de prueba siguen disponibles.');throw error;}
  finally{clearTimeout(timer);signal?.removeEventListener('abort',abort);}
 }
-export async function searchAnime(search='',page=1,signal){const term=search.trim().slice(0,100);const data=await query('search',{search:term,page},signal);return {items:data.Page.media.map(normalizeMedia),hasNext:!!data.Page.pageInfo.hasNextPage};}
+export async function searchAnime(search='',page=1,signal,category='all'){if(!Object.hasOwn(catalogCountries,category))throw Error('Filtro inválido.');const term=catalogSearchTerm(search);const data=await query('search',{search:term,page,category},signal);return {items:data.Page.media.map(normalizeMedia),hasNext:!!data.Page.pageInfo.hasNextPage};}
 export async function animeDetails(id,signal){if(!Number.isInteger(id)||id<=0)throw Error('Identificador de anime inválido.');const data=await query('details',{id},signal);return normalizeMedia(data.Media);}
 
 export function posterUrl(value){try{const url=new URL(value);if(url.protocol!=='https:'||url.hostname!=='s4.anilist.co'||!/^\/file\/anilistcdn\/media\/anime\/cover\/(?:small|medium|large)\/[a-zA-Z0-9_.-]+\.(?:jpg|jpeg|png|webp)$/.test(url.pathname))return null;const target=new URL(API);target.searchParams.set('cover',url.pathname);target.searchParams.set('key','sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50');return target.href;}catch{return null;}}

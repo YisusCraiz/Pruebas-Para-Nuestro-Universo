@@ -1,6 +1,6 @@
 const headers={'Access-Control-Allow-Origin':'https://yisuscraiz.github.io','Access-Control-Allow-Headers':'apikey,content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json','Cache-Control':'no-store'};
 const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{headers,status});
-const summary='id idMal title{romaji english native} coverImage{large} startDate{year} episodes format genres averageScore siteUrl';
+const summary='id countryOfOrigin idMal title{romaji english native} coverImage{large} startDate{year} episodes format genres averageScore siteUrl';
 const cache=new Map<string,{time:number,data:unknown}>();let minute=0,requests=0;
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
@@ -19,8 +19,8 @@ Deno.serve(async req=>{
  if(req.headers.get('apikey')!=='sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50')return reply({error:'Cliente no reconocido.'},401);
  try{
  const raw=await req.text();if(raw.length>1024)return reply({error:'Solicitud inválida.'},400);
- const {action,search='',page=1,id}=JSON.parse(raw);let query,variables;
- if(action==='search'){if(typeof search!=='string'||search.length>100||!Number.isInteger(page)||page<1||page>100)return reply({error:'Búsqueda inválida.'},400);query=`query($search:String,$page:Int){Page(page:$page,perPage:12){pageInfo{hasNextPage currentPage} media(type:ANIME,isAdult:false,search:$search,sort:POPULARITY_DESC){${summary}}}}`;variables={search:search.trim()||null,page};}
+ const {action,search='',page=1,id,category='all'}=JSON.parse(raw);let query,variables;
+ if(action==='search'){if(!['all','anime','donghua'].includes(category))return reply({error:'Filtro inválido.'},400);if(typeof search!=='string'||search.length>100||!Number.isInteger(page)||page<1||page>100)return reply({error:'Búsqueda inválida.'},400);query=`query($search:String,$page:Int,$country:CountryCode){Page(page:$page,perPage:12){pageInfo{hasNextPage currentPage} media(type:ANIME,isAdult:false,countryOfOrigin:$country,search:$search,sort:POPULARITY_DESC){${summary}}}}`;variables={search:search.trim()||null,page,country:({anime:'JP',donghua:'CN'} as Record<string,string>)[category]||null};}
  else if(action==='details'&&Number.isInteger(id)&&id>0){query=`query($id:Int){Media(id:$id,type:ANIME){${summary} description(asHtml:false) streamingEpisodes{title url site} externalLinks{site url type language} relations{edges{relationType node{${summary} type}}}}}`;variables={id};}
  else return reply({error:'Acción inválida.'},400);
  const key=JSON.stringify({action,variables}),cached=cache.get(key);if(cached&&Date.now()-cached.time<300000)return reply(cached.data);

@@ -53,3 +53,11 @@ La función limita destinos a api.ani.zip y api.gestdown.info, rechaza redirecci
 
 ## Subtítulos personales en sala
 Los botones Español, English, Ambos y Sin subtítulos están disponibles para anfitrión y acompañante. Cada navegador conserva su idioma, tamaño, pistas y archivos propios. Cambiar estas opciones no publica un evento de reproducción ni modifica la elección del otro. La sala comparte únicamente la fuente, posición y estado de reproducción. La disponibilidad de pistas sigue dependiendo del capítulo.
+
+## Anime y donghua
+En Explorar, el selector Todos / Anime · Japón / Donghua · China filtra por countryOfOrigin en AniList antes de paginar. Todos conserva otros países. Las tarjetas y fichas muestran la clasificación cuando el país es JP o CN. Alias exactos: Doupo Cangqiong y Battle Through the Heavens → Dou Po Cangqiong; Combat Continent y Soul Land → Douluo Dalu. No se altera una búsqueda con número de temporada. Se verificaron respuestas reales CN para Doupo y Soul Land, y JP para el catálogo de anime. Encontrar una ficha no garantiza video ni subtítulos.
+
+## Traducción local experimental
+Si hay una pista ES o EN lista y falta la otra, el botón Traducir idioma faltante usa la API Translator del navegador, con activación por clic. Conserva tiempos y marca el resultado como Traducción automática. Se puede cancelar; cambiar de capítulo cancela el resultado y nunca lo publica en la sala. El navegador puede descargar un paquete de idiomas. No se envía el texto a una API de traducción contratada por esta app ni se añade una clave.
+
+Limitación importante: según https://developer.chrome.com/docs/ai/translator-api esta API funciona en Chrome de escritorio compatible, no en móviles. Sin soporte el botón queda desactivado y se muestra el motivo. La lógica se verifica con un traductor simulado; no equivale a probar calidad ni descarga del modelo en cada equipo. Para Android/iPhone sigue pendiente conectar un servicio de traducción de servidor; no se ha configurado ni contratado uno.
