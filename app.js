@@ -8,7 +8,7 @@ import {initBrowse} from './browse.js?v=20261027-sources1';
 import {initRooms,canLoadSource} from './rooms.js?v=20261027-roomfix1';
 import {activeText} from './subtitles.js?v=20261026-portable2';
 import {CaptionTracks,captionPreferences,saveCaptionPreferences,captionLoadLanguages} from './caption-tracks.js?v=20261026-portable2';
-import {MediaPlayer} from './player.js?v=20261027-sources1';
+import {MediaPlayer} from './player.js?v=20261027-sources2';
 import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-portable2';
 const $=id=>document.getElementById(id),video=new MediaPlayer($('video'),$('youtubeHost'));
 let captionLookup=null,translationJob=null,translatedFrom=null,speechJob=null;
