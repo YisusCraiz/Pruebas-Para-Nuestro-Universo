@@ -1,4 +1,5 @@
-import {translationSupported,translateCaptionCues} from './translate-captions.js?v=20261026-portable2';
+import {savedTranslation,readSavedTranslation} from './saved-translation.js?v=20261026-saved1';
+import {translationSupported} from './translate-captions.js?v=20261026-portable2';
 import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-portable2';
 import {parseStreamReference,streamReference} from './stream-api.js?v=20261026-portable2';
 import {initBrowse} from './browse.js?v=20261026-portable2';
@@ -9,6 +10,7 @@ import {MediaPlayer} from './player.js?v=20261026-portable2';
 import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-portable2';
 const $=id=>document.getElementById(id),video=new MediaPlayer($('video'),$('youtubeHost'));
 let captionLookup=null,translationJob=null,translatedFrom=null;
+const checkedTranslations=new WeakMap();
 const captions=new CaptionTracks(()=>{render();captionStatus();});
 let preferenceStore;try{preferenceStore=window.localStorage;}catch{}
 const preferences=captionPreferences(preferenceStore);$('mode').value=preferences.mode;$('captionSize').value=String(preferences.size);
@@ -30,6 +32,7 @@ for(const lang of ['es','en'])$(lang+'File').addEventListener('change',async e=>
 function render(){const mode=$('mode').value,offset=Number($('offset').value)||0;for(const lang of ['es','en'])$(lang+'Line').textContent=mode==='both'||mode===lang?activeText(captions.get(lang).cues,video.currentTime-offset):'';}
 function captionStatus(){if(translatedFrom&&captions.get(translatedFrom.source)!==translatedFrom.entry){const target=translatedFrom.target;translatedFrom=null;if(['machine'].includes(captions.get(target).kind))captions.clear(target);}let failed=false;for(const lang of ['es','en']){const entry=captions.get(lang),name=lang==='es'?'Español':'English';const text={empty:'Sin pista',unavailable:'Sin pista ofrecida',loading:'Cargando…',error:entry.error||'No se pudo cargar'}[entry.status]||`${entry.cues.length} línea${entry.cues.length===1?'':'s'} · ${entry.kind==='file'?'archivo propio':entry.kind==='machine'?'Traducción automática':entry.label||'fuente alternativa'}`;$(lang+'CaptionStatus').textContent=`${name}: ${text}`;if(entry.status==='error'&&entry.kind==='remote')failed=true;}
  $('retryCaptions').hidden=!failed&&!captionLookup?.failed;const missing=['es','en'].find(lang=>['empty','unavailable','error'].includes(captions.get(lang).status)&&captions.get(lang==='es'?'en':'es').status==='ready');$('translateMissing').disabled=!missing||!translationSupported()||!!translationJob;
+ if(missing&&!translationJob&&$('mode').value!=='off')void restoreSavedTranslation(missing);
 }
 video.addEventListener('timeupdate',render);video.addEventListener('seeked',render);$('mode').addEventListener('change',applyPreferences);$('captionSize').addEventListener('change',applyPreferences);$('offset').addEventListener('input',render);
 for(const [id,delta] of [['captionEarlier',-.5],['captionLater',.5]])$(id).addEventListener('click',()=>{$('offset').value=String(Math.max(-120,Math.min(120,(Number($('offset').value)||0)+delta)));render();});$('captionReset').addEventListener('click',()=>{$('offset').value='0';render();});
@@ -49,7 +52,19 @@ async function prepareCaptions(info,ref){captionLookup?.controller.abort();const
  }catch(error){if(lookup!==captionLookup||lookup.controller.signal.aborted)return;lookup.failed=true;$('sourceSubtitleStatus').textContent=error.message+' Puedes cargar un archivo propio.';for(const lang of ['es','en'])if(captions.get(lang).kind!=='file')captions.clear(lang,'unavailable');}finally{if(lookup===captionLookup)captionStatus();}
 }
 
-$('translateMissing').addEventListener('click',async()=>{const target=['es','en'].find(lang=>['empty','unavailable','error'].includes(captions.get(lang).status)&&captions.get(lang==='es'?'en':'es').status==='ready');if(!target||translationJob)return;const source=target==='es'?'en':'es',entry=captions.get(source),job={source,target};translationJob=job;translatedFrom={source,target,entry};$('cancelTranslation').hidden=false;$('translationStatus').textContent='Preparando el motor de traducción. Primera descarga: aproximadamente 120 MB; después puede reutilizarse desde la caché.';captionStatus();try{const ok=await captions.load(target,signal=>translateCaptionCues(entry.cues,{source,target,signal,onProgress:p=>{if(translationJob===job)$('translationStatus').textContent=p.stage==='download'?`Descargando motor: ${Math.round(p.progress*100)}%`:`Traducción automática: ${p.done}/${p.total} líneas`;}}),{kind:'machine',label:'Traducción automática'});if(translationJob===job)$('translationStatus').textContent=ok?'Traducción automática lista. Puede contener errores en nombres o expresiones.':'Traducción cancelada o no disponible. La pista original se conserva.';}finally{if(translationJob===job){translationJob=null;$('cancelTranslation').hidden=true;captionStatus();}}});
+async function restoreSavedTranslation(target){
+ const source=target==='es'?'en':'es',entry=captions.get(source),previous=captions.get(target);
+ if(entry.kind==='machine'||checkedTranslations.get(entry)===previous)return;
+ checkedTranslations.set(entry,previous);
+ try{const {raw}=await readSavedTranslation(entry.cues,{source,target});
+ if(!raw||translationJob||captions.get(source)!==entry||captions.get(target)!==previous||$('mode').value==='off')return;
+ translatedFrom={source,target,entry};
+ const ok=await captions.load(target,()=>raw,{kind:'machine',label:'Traducción automática guardada'});
+ if(ok&&captions.get(source)===entry)$('translationStatus').textContent='Traducción automática recuperada de este dispositivo. Puede contener errores en nombres o expresiones.';
+ }catch{/* Storage failures leave manual translation available. */}
+}
+
+$('translateMissing').addEventListener('click',async()=>{const target=['es','en'].find(lang=>['empty','unavailable','error'].includes(captions.get(lang).status)&&captions.get(lang==='es'?'en':'es').status==='ready');if(!target||translationJob)return;const source=target==='es'?'en':'es',entry=captions.get(source),job={source,target};translationJob=job;translatedFrom={source,target,entry};$('cancelTranslation').hidden=false;$('translationStatus').textContent='Preparando el motor de traducción. Primera descarga: aproximadamente 120 MB; después puede reutilizarse desde la caché.';captionStatus();try{const ok=await captions.load(target,signal=>savedTranslation(entry.cues,{source,target,signal,onProgress:p=>{if(translationJob===job)$('translationStatus').textContent=p.stage==='cached'?'Traducción recuperada de este dispositivo.':p.stage==='saved'?'Traducción guardada en este dispositivo.':p.stage==='unsaved'?'Traducción lista; el navegador no permitió guardarla.':p.stage==='download'?`Descargando motor: ${Math.round(p.progress*100)}%`:`Traducción automática: ${p.done}/${p.total} líneas`;if(['cached','saved','unsaved'].includes(p.stage))job.storage=p.stage;}}),{kind:'machine',label:'Traducción automática'});if(translationJob===job)$('translationStatus').textContent=ok?(job.storage==='unsaved'?'Traducción lista, pero no se pudo guardar en este dispositivo.':job.storage==='cached'?'Traducción automática recuperada de este dispositivo.':'Traducción automática lista y guardada en este dispositivo. Puede contener errores en nombres o expresiones.'):'Traducción cancelada o no disponible. La pista original se conserva.';}finally{if(translationJob===job){translationJob=null;$('cancelTranslation').hidden=true;captionStatus();}}});
 $('cancelTranslation').addEventListener('click',()=>{if(translationJob)captions.clear(translationJob.target);});
 
 $('retryCaptions').addEventListener('click',()=>{if(captionLookup?.failed){const ref=parseStreamReference(video.source);if(ref&&video.providerInfo)void prepareCaptions(video.providerInfo,ref);return;}for(const lang of ['es','en']){const entry=captions.get(lang);if(entry.status==='error'&&entry.kind==='remote')void remoteSubtitle(lang);}});
