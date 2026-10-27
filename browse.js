@@ -1,4 +1,4 @@
-import {availableEpisodes,streamReference} from './stream-api.js?v=20261027-sources1';
+import {availableEpisodes,streamReference} from './stream-api.js?v=20261027-sources3';
 import {searchAnime,animeDetails,httpsUrl,posterUrl} from './catalog-api.js?v=20261027-roomfix1';
 import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-donghua1';
 import {createLibrary} from './watch-library.js?v=20261026-donghua1';

@@ -1,5 +1,5 @@
-import {DailymotionPlayer,dailymotionReference} from './dailymotion-player.js?v=20261027-sources2';
-import {parseStreamReference,resolveEpisode} from './stream-api.js?v=20261027-sources1';
+import {DailymotionPlayer,dailymotionReference} from './dailymotion-player.js?v=20261027-sources3';
+import {parseStreamReference,resolveEpisode} from './stream-api.js?v=20261027-sources3';
 import {youtubeId,isHlsUrl} from './sources.js?v=20261026-streams1';
 let youtubeAPI;
 async function hlsClass(){if(window.Hls)return window.Hls;return (await import('https://cdn.jsdelivr.net/npm/hls.js@1.6.13/dist/hls.mjs')).default;}

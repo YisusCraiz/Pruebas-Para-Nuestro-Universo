@@ -3,12 +3,12 @@ import {decodeCaptionAudio,generateAudioCaptions} from './audio-captions.js?v=20
 import {savedTranslation,readSavedTranslation} from './saved-translation.js?v=20261026-saved1';
 import {translationSupported} from './translate-captions.js?v=20261026-portable2';
 import {searchAlternativeSubtitles,alternativeSubtitleUrl} from './alternative-subtitles.js?v=20261026-portable2';
-import {parseStreamReference,streamReference} from './stream-api.js?v=20261027-sources1';
-import {initBrowse} from './browse.js?v=20261027-sources1';
+import {parseStreamReference,streamReference} from './stream-api.js?v=20261027-sources3';
+import {initBrowse} from './browse.js?v=20261027-sources3';
 import {initRooms,canLoadSource} from './rooms.js?v=20261027-roomfix1';
 import {activeText} from './subtitles.js?v=20261026-portable2';
 import {CaptionTracks,captionPreferences,saveCaptionPreferences,captionLoadLanguages} from './caption-tracks.js?v=20261026-portable2';
-import {MediaPlayer} from './player.js?v=20261027-sources2';
+import {MediaPlayer} from './player.js?v=20261027-sources3';
 import {catalog,youtubeId,videoUrl} from './sources.js?v=20261026-portable2';
 const $=id=>document.getElementById(id),video=new MediaPlayer($('video'),$('youtubeHost'));
 let captionLookup=null,translationJob=null,translatedFrom=null,speechJob=null;
@@ -81,7 +81,7 @@ $('cancelSpeech').addEventListener('click',()=>{if(speechJob)captions.clear('en'
 
 $('retryCaptions').addEventListener('click',()=>{if(captionLookup?.failed){const ref=parseStreamReference(video.source);if(ref&&video.providerInfo)void prepareCaptions(video.providerInfo,ref);return;}for(const lang of ['es','en']){const entry=captions.get(lang);if(entry.status==='error'&&entry.kind==='remote')void remoteSubtitle(lang);}});
 video.addEventListener('providerready',()=>{const info=video.providerInfo,ref=parseStreamReference(video.source);if(!info||!ref)return;$('title').textContent=`${info.title} · Capítulo ${info.episode}`;message('');$('chapterNavigation').hidden=false;$('chapterLabel').textContent=`Capítulo ${info.episode}${info.totalEpisodes?' de '+info.totalEpisodes:''}`;const canChoose=canLoadSource(video.source);$('previousChapter').disabled=!canChoose||info.episode<=1;$('nextChapter').disabled=!canChoose||!!info.totalEpisodes&&info.episode>=info.totalEpisodes;
- const embedded=info.streams?.[0]?.type==='dailymotion';$('providerNote').hidden=!embedded;$('providerNote').textContent='Fuente adicional con reproductor Dailymotion: los CC se eligen dentro del video y pueden variar por capítulo. Los subtítulos incrustados no se pueden ocultar. Los botones ES/EN de AnimeJJ controlan las pistas que cargues aquí. Los anuncios pueden causar diferencias temporales en sala.';void prepareCaptions(info,ref);
+ const embedded=info.streams?.[0]?.type==='dailymotion'||info.provider==='animexin'||info.provider==='donghuastream';$('providerNote').hidden=!embedded;$('providerNote').textContent='Fuente adicional Odysee/Dailymotion. Si aparece un reproductor externo, sus CC se eligen dentro del video y pueden variar por capítulo. Los subtítulos incrustados no se pueden ocultar. Los botones ES/EN de AnimeJJ controlan las pistas que cargues aquí. Los anuncios pueden causar diferencias temporales en sala.';void prepareCaptions(info,ref);
 });
 for(const lang of ['es','en'])$(lang+'Remote').addEventListener('change',()=>void remoteSubtitle(lang));
 for(const [id,offset] of [['previousChapter',-1],['nextChapter',1]])$(id).addEventListener('click',()=>{const ref=parseStreamReference(video.source),info=video.providerInfo;if(ref&&info)load(streamReference(ref.animeId,ref.episode+offset,ref.provider),`${info.title} · Capítulo ${ref.episode+offset}`);});
