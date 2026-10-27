@@ -1,4 +1,5 @@
-import {catalogSearchTerm,catalogCountries} from './catalog-search.js?v=20261026-donghua1';
+export function mediaTitle(raw){const en=raw.title?.english,original=raw.title?.romaji;return raw.countryOfOrigin==='CN'&&en&&original&&en!==original?`${en} · ${original}`:en||original||raw.title?.native||'Sin título';}
+import {catalogSearchTerm,catalogCountries} from './catalog-search.js?v=20261027-roomfix1';
 const API='https://suvcdkqqwrodwxgmcjej.supabase.co/functions/v1/animejj-catalog';
 const cache=new Map();
 let cooldown=0;
@@ -6,7 +7,7 @@ export function plainText(value){return String(value||'').replace(/<br\s*\/?\s*>
 export function httpsUrl(value){try{const url=new URL(value);return url.protocol==='https:'?url.href:null;}catch{return null;}}
 export function normalizeMedia(raw){
  if(!raw||!Number.isInteger(raw.id))throw Error('La ficha recibida no es válida.');
- return {key:`anilist:${raw.id}`,provider:'anilist',id:raw.id,malId:raw.idMal||null,title:raw.title?.english||raw.title?.romaji||raw.title?.native||'Sin título',titles:Object.values(raw.title||{}).filter(Boolean),cover:httpsUrl(raw.coverImage?.large),year:raw.startDate?.year||null,episodes:raw.episodes||null,format:raw.format||'',country:raw.countryOfOrigin||null,genres:raw.genres||[],score:raw.averageScore||null,description:plainText(raw.description),pageUrl:httpsUrl(raw.siteUrl),
+ return {key:`anilist:${raw.id}`,provider:'anilist',id:raw.id,malId:raw.idMal||null,title:mediaTitle(raw),titles:Object.values(raw.title||{}).filter(Boolean),cover:httpsUrl(raw.coverImage?.large),year:raw.startDate?.year||null,episodes:raw.episodes||null,format:raw.format||'',country:raw.countryOfOrigin||null,genres:raw.genres||[],score:raw.averageScore||null,description:plainText(raw.description),pageUrl:httpsUrl(raw.siteUrl),
  streaming:(raw.streamingEpisodes||[]).map(e=>({title:e.title||'Episodio',url:httpsUrl(e.url),site:e.site||'Plataforma externa'})).filter(e=>e.url),
  links:(raw.externalLinks||[]).filter(e=>e.type==='STREAMING').map(e=>({site:e.site||'Plataforma',url:httpsUrl(e.url),language:e.language||null})).filter(e=>e.url),
  relations:(raw.relations?.edges||[]).filter(e=>e.node?.type==='ANIME').map(e=>({...normalizeMedia(e.node),relation:e.relationType}))};

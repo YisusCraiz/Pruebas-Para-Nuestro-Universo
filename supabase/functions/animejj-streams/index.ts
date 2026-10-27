@@ -1,4 +1,4 @@
-import {embeddedJSON,selectAniZone,parseEpisodeItems,htmlEntities} from './provider-parsers.js';
+import {embeddedJSON,selectAniZone,parseEpisodeItems,htmlEntities,providerSearchTitles} from './provider-parsers.js';
 const KEY='sb_publishable_4DzMuO6nmtNRTh2qOUXu0Q_JIf-PF50';
 const SITE='https://anizone.to';
 const cors={'Access-Control-Allow-Origin':'https://yisuscraiz.github.io','Access-Control-Allow-Headers':'apikey,content-type','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Content-Type':'application/json','Cache-Control':'no-store'};
@@ -12,10 +12,10 @@ function trimCache(map:Map<any,any>){if(map.size>=25)map.delete(map.keys().next(
 function cookies(res:Response){const values=typeof res.headers.getSetCookie==='function'?res.headers.getSetCookie():[res.headers.get('set-cookie')||''];return values.map(v=>v.split(';')[0]).filter(Boolean).join('; ');}
 function pageState(html:string,cookie:string){const snapshots=[...html.matchAll(/wire:snapshot="([^"]*)"/gi)];const snapshot=snapshots.find(x=>x[1].includes('pages.anime-detail'))?.[1]||snapshots.find(x=>htmlEntities(x[1]).includes('anime-detail'))?.[1]||'';const csrf=html.match(/<meta[^>]*name="csrf-token"[^>]*content="([^"]+)"/i)?.[1]||'';return {snapshot:htmlEntities(snapshot),csrf,cookie,cursor:html.match(/nextCursor:\s*'([^']+)'/)?.[1]||null,hasMore:/hasMore:\s*true/.test(html)};}
 async function getInfo(id:number){const cached=infoCache.get(id);if(cached&&Date.now()-cached.time<180000)return cached;if(pending.has('info:'+id))return pending.get('info:'+id);const promise=(async()=>{
- const res=await request('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'query($id:Int){Media(id:$id,type:ANIME){id title{romaji english native} startDate{year} format status episodes}}',variables:{id}})});const data=await res.json(),media=data.data?.Media;if(!media)throw Error('No pudimos identificar esta serie.');
+ const res=await request('https://graphql.anilist.co',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:'query($id:Int){Media(id:$id,type:ANIME){id title{romaji english native} synonyms startDate{year} format status episodes}}',variables:{id}})});const data=await res.json(),media=data.data?.Media;if(!media)throw Error('No pudimos identificar esta serie.');
  let selected:any=null;
- for(const title of [...new Set([media.title.romaji,media.title.english].filter(Boolean))]){const page=await textPage(SITE+'/anime?search='+encodeURIComponent(title as string));const candidates=embeddedJSON(page.text,'items');selected=selectAniZone(candidates,media);if(selected)break;}
- if(!selected)throw Error('No encontramos una coincidencia segura para esta temporada en la fuente.');
+ for(const title of providerSearchTitles(media)){const page=await textPage(SITE+'/anime?search='+encodeURIComponent(title as string));const candidates=embeddedJSON(page.text,'items');selected=selectAniZone(candidates,media);if(selected)break;}
+ if(!selected)throw Object.assign(Error('Esta temporada figura en el catálogo, pero la fuente integrada no ofrece una coincidencia verificada. Consulta las plataformas externas o las temporadas relacionadas.'),{code:'NO_PROVIDER_MATCH'});
  const detail=await textPage(SITE+'/anime/'+selected.slug);const rows=embeddedJSON(detail.text,'items');const episodes=parseEpisodeItems(rows);if(!episodes.length)throw Error('La fuente no tiene episodios disponibles para esta temporada.');
  const info={time:Date.now(),media,slug:selected.slug,pages:[episodes],state:pageState(detail.text,cookies(detail.res))};trimCache(infoCache);infoCache.set(id,info);return info;
  })().finally(()=>pending.delete('info:'+id));pending.set('info:'+id,promise);return promise;}
@@ -43,5 +43,5 @@ Deno.serve(async req=>{
  if(action==='episodes'&&Number.isInteger(page)&&page>=1&&page<=30)return reply(await episodes(animeId,page));
  if(action==='watch'&&Number.isInteger(episode)&&episode>=1&&episode<=100000)return reply(await watch(animeId,episode));
  return reply({error:'Acción inválida.'},400);
- }catch(error){return reply({error:error instanceof Error?error.message:'No pudimos consultar la fuente.',provider:'anizone'},503);}
+ }catch(error){return reply({error:error instanceof Error?error.message:'No pudimos consultar la fuente.',provider:'anizone',code:(error as any)?.code||'PROVIDER_ERROR'},(error as any)?.code==='NO_PROVIDER_MATCH'?404:503);}
 });
